@@ -38,7 +38,9 @@ dev = [
 # outside a git checkout with no tags (should not occur in CI/release).
 [tool.hatch.version]
 source = "vcs"
-raw-options = { fallback_version = "0.0.0" }
+# no-local-version drops the "+g<sha>" suffix so untagged dev builds
+# (e.g. the TestPyPI dry-run) produce PyPI-acceptable versions like 0.1.dev3.
+raw-options = { fallback_version = "0.0.0", local_scheme = "no-local-version" }
 
 [tool.hatch.build.hooks.vcs]
 version-file = "qua_libs_core/_version.py"
