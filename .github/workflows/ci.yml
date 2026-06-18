@@ -1,0 +1,10 @@
+# TODO: CI for qua-libs-core
+# Expected checks:
+#   - Python formatting (black) across Tutorials/
+#   - Optional linting (flake8/ruff)
+#   - Smoke tests: import/run tutorial scripts in simulation mode where applicable
+#   - Matrix Python versions aligned with qm-qua support
+#
+# name: ci
+# on: [push, pull_request]
+# jobs: ...

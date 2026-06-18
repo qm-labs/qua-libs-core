@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qua-libs-core"
+dynamic = ["version"]
+description = "Core utilities shared across the qua-libs modality repositories"
+readme = "README.md"
+license = { text = "BSD-3-Clause" }
+requires-python = ">=3.9"
+authors = [{ name = "Quantum Machines", email = "info@quantum-machines.co" }]
+keywords = ["quantum", "qua", "quantum-machines", "qua-libs"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "qm-qua>=1.2.0",
+    "qualang-tools>=0.19.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/qua-platform/qua-libs-core"
+Repository = "https://github.com/qua-platform/qua-libs-core"
+
+# Development tooling, installed with `uv sync`. Mirrors the formatting check
+# in CI so contributors can reproduce it locally.
+[dependency-groups]
+dev = [
+    "black>=24.3.0",
+    "pytest>=8.0.0",
+]
+
+# Version is derived from the git tag (e.g. tag `v0.2.0` -> version `0.2.0`).
+# No manual edits needed; `fallback_version` only applies to builds made
+# outside a git checkout with no tags (should not occur in CI/release).
+[tool.hatch.version]
+source = "vcs"
+raw-options = { fallback_version = "0.0.0" }
+
+[tool.hatch.build.hooks.vcs]
+version-file = "qua_libs_core/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["qua_libs_core"]
+
+[tool.black]
+line-length = 120
