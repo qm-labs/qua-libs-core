@@ -1,10 +1,60 @@
-# TODO: CI for qua-libs-core
-# Expected checks:
-#   - Python formatting (black) across Tutorials/
-#   - Optional linting (flake8/ruff)
-#   - Smoke tests: import/run tutorial scripts in simulation mode where applicable
-#   - Matrix Python versions aligned with qm-qua support
+name: ci
+
+# Baseline CI for qua-libs-core.
 #
-# name: ci
-# on: [push, pull_request]
-# jobs: ...
+# This mirrors the original qua-libs formatting gate (black --check), adapted to
+# the uv + hatchling toolchain, and adds a packaging smoke test across the
+# supported Python versions. It is intentionally self-contained: this is the
+# template the other qua-libs-* repos follow, and that we later factor into a
+# reusable workflow hosted in qua-libs-meta.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref (e.g. rapid pushes to a PR).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    name: black --check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+      - name: Check formatting
+        # Bounded to the 24.x line so CI and local dev agree on formatting
+        # (matches the `black` pin in pyproject.toml's dev group).
+        run: uvx --from "black>=24.3,<25" black --check --diff .
+
+  build-import:
+    name: build + import (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # hatch-vcs derives the package version from git tags/history.
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Build sdist + wheel
+        run: uv build
+      - name: Install built wheel and import
+        # --no-deps keeps this fast: it verifies the package builds and imports
+        # on each Python version without pulling the heavy runtime deps. Drop
+        # --no-deps to additionally validate that dependencies resolve per-version.
+        run: |
+          uv venv
+          uv pip install --no-deps dist/*.whl
+          uv run --no-project python -c "import qua_libs_core; print('qua-libs-core', qua_libs_core.__version__)"

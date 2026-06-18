@@ -29,7 +29,7 @@ Repository = "https://github.com/qua-platform/qua-libs-core"
 # in CI so contributors can reproduce it locally.
 [dependency-groups]
 dev = [
-    "black>=24.3.0",
+    "black>=24.3,<25",
     "pytest>=8.0.0",
 ]
 
