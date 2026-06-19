@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "Core utilities shared across the qua-libs modality repositories"
 readme = "README.md"
 license = { text = "BSD-3-Clause" }
-requires-python = ">=3.9"
+requires-python = ">=3.10,<3.13"
 authors = [{ name = "Quantum Machines", email = "info@quantum-machines.co" }]
 keywords = ["quantum", "qua", "quantum-machines", "qua-libs"]
 classifiers = [
@@ -30,6 +30,7 @@ Repository = "https://github.com/qua-platform/qua-libs-core"
 [dependency-groups]
 dev = [
     "black>=24.3,<25",
+    "ruff>=0.6,<1",
     "pytest>=8.0.0",
 ]
 
@@ -50,3 +51,12 @@ packages = ["qua_libs_core"]
 
 [tool.black]
 line-length = 120
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+# `from qm.qua import *` is the idiomatic QUA style (F403/F405); single-letter
+# names like I/Q/l are standard in physics code (E741). Ignoring these keeps
+# ruff's output useful. Run locally with: uv run ruff check .
+ignore = ["F403", "F405", "E741"]

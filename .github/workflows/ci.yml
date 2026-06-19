@@ -32,6 +32,19 @@ jobs:
         # (matches the `black` pin in pyproject.toml's dev group).
         run: uvx --from "black>=24.3,<25" black --check --diff .
 
+  lint:
+    name: ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+      - name: Lint package with ruff
+        # Scoped to the maintained library package; ruff reads its config
+        # (line-length, ignores) from pyproject.toml. The example Tutorials are
+        # not gated (they use the QUA `import *` idiom heavily).
+        run: uvx "ruff>=0.6,<1" check qua_libs_core
+
   build-import:
     name: build + import (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
