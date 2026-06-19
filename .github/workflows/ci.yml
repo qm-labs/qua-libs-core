@@ -1,12 +1,9 @@
 name: ci
 
-# Baseline CI for qua-libs-core.
-#
-# This mirrors the original qua-libs formatting gate (black --check), adapted to
-# the uv + hatchling toolchain, and adds a packaging smoke test across the
-# supported Python versions. It is intentionally self-contained: this is the
-# template the other qua-libs-* repos follow, and that we later factor into a
-# reusable workflow hosted in qua-libs-meta.
+# Baseline CI: black formatting gate (mirrors the original qua-libs check),
+# adapted to uv. Self-contained; this repo no longer builds a package. ruff is
+# available as a dev tool (config in pyproject.toml) but, as in the modality
+# repos, the tutorial code is not gated (it uses the QUA `import *` idiom).
 
 on:
   push:
@@ -14,7 +11,6 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Cancel superseded runs on the same ref (e.g. rapid pushes to a PR).
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -28,46 +24,4 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v6
       - name: Check formatting
-        # Bounded to the 24.x line so CI and local dev agree on formatting
-        # (matches the `black` pin in pyproject.toml's dev group).
         run: uvx --from "black>=24.3,<25" black --check --diff .
-
-  lint:
-    name: ruff
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-      - name: Lint package with ruff
-        # Scoped to the maintained library package; ruff reads its config
-        # (line-length, ignores) from pyproject.toml. The example Tutorials are
-        # not gated (they use the QUA `import *` idiom heavily).
-        run: uvx "ruff>=0.6,<1" check qua_libs_core
-
-  build-import:
-    name: build + import (py${{ matrix.python-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # hatch-vcs derives the package version from git tags/history.
-          fetch-depth: 0
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Build sdist + wheel
-        run: uv build
-      - name: Install built wheel and import
-        # --no-deps keeps this fast: it verifies the package builds and imports
-        # on each Python version without pulling the heavy runtime deps. Drop
-        # --no-deps to additionally validate that dependencies resolve per-version.
-        run: |
-          uv venv
-          uv pip install --no-deps dist/*.whl
-          uv run --no-project python -c "import qua_libs_core; print('qua-libs-core', qua_libs_core.__version__)"

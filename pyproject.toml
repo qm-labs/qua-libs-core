@@ -1,53 +1,32 @@
-[build-system]
-requires = ["hatchling", "hatch-vcs"]
-build-backend = "hatchling.build"
+# qua-libs-core is the entry-point repo for the modality-split qua-libs: it holds
+# the generic, modality-agnostic QUA tutorials and is the landing page for the
+# per-modality repos. It is NOT an installable package. `package = false` is the
+# uv-native equivalent of the original qua-libs Poetry `package-mode = false`.
+#
+# Runtime dependencies are derived from the imports the Tutorials actually use.
 
 [project]
 name = "qua-libs-core"
-dynamic = ["version"]
-description = "Core utilities shared across the qua-libs modality repositories"
-readme = "README.md"
+version = "0"
+description = "Generic QUA tutorials and landing page for the modality-split qua-libs"
 license = { text = "BSD-3-Clause" }
-requires-python = ">=3.10,<3.13"
 authors = [{ name = "Quantum Machines", email = "info@quantum-machines.co" }]
-keywords = ["quantum", "qua", "quantum-machines", "qua-libs"]
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: BSD License",
-    "Operating System :: OS Independent",
-]
+requires-python = ">=3.10,<3.13"
 dependencies = [
     "qm-qua>=1.2.0",
     "qualang-tools>=0.19.0",
+    "qm-saas",
+    "numpy>=1.18.5",
+    "scipy>=1.7.0",
+    "matplotlib>=3.2.2",
+    "plotly>=5.24.1",
 ]
 
-[project.urls]
-Homepage = "https://github.com/qua-platform/qua-libs-core"
-Repository = "https://github.com/qua-platform/qua-libs-core"
+[tool.uv]
+package = false
 
-# Development tooling, installed with `uv sync`. Mirrors the formatting check
-# in CI so contributors can reproduce it locally.
 [dependency-groups]
-dev = [
-    "black>=24.3,<25",
-    "ruff>=0.6,<1",
-    "pytest>=8.0.0",
-]
-
-# Version is derived from the git tag (e.g. tag `v0.2.0` -> version `0.2.0`).
-# No manual edits needed; `fallback_version` only applies to builds made
-# outside a git checkout with no tags (should not occur in CI/release).
-[tool.hatch.version]
-source = "vcs"
-# no-local-version drops the "+g<sha>" suffix so untagged dev builds
-# (e.g. the TestPyPI dry-run) produce PyPI-acceptable versions like 0.1.dev3.
-raw-options = { fallback_version = "0.0.0", local_scheme = "no-local-version" }
-
-[tool.hatch.build.hooks.vcs]
-version-file = "qua_libs_core/_version.py"
-
-[tool.hatch.build.targets.wheel]
-packages = ["qua_libs_core"]
+dev = ["black>=24.3,<25", "ruff>=0.6,<1"]
 
 [tool.black]
 line-length = 120

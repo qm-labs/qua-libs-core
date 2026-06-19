@@ -10,9 +10,6 @@ dist/
 *.whl
 *.tar.gz
 
-# hatch-vcs generated version file
-qua_libs_core/_version.py
-
 # Virtual environments / tooling
 .venv/
 .uv/

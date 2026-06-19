@@ -1,25 +1,35 @@
 # qua-libs-core
 
-Modality-agnostic QUA tutorials and shared documentation scaffolding, split from [qua-libs](https://github.com/qua-platform/qua-libs).
+The entry point for the modality-split **qua-libs**. This repo hosts the
+generic, modality-agnostic QUA tutorials and serves as the landing page that
+points to the per-modality repositories. It is **not** an installable package.
 
-## Contents
+> Eventually this repo will be renamed to **`qua-libs`** and replace the original
+> monolithic repository — but that deprecation is **not happening yet**. The
+> original [qua-libs](https://github.com/qua-platform/qua-libs) remains canonical
+> for now.
 
-- `Tutorials/` — generic OPX/QUA tutorials (timing, streams, simulation, macros, octave, etc.)
-- `docs/` — placeholder for shared documentation (CONTRIBUTING, migration guides, links to modality repos)
+## Generic tutorials (here)
 
-## Modality-specific tutorials (not in this repo)
+`Tutorials/` — modality-agnostic OPX/QUA lessons: timing, streams, demodulation,
+simulation, macros, Octave, chirps, saving, and more. Start here to learn QUA
+without pulling in any modality-specific code.
 
-| Tutorial | Target repo |
+## Modality repositories
+
+Each modality repo is **fully standalone** — install and run it without any of
+the others (and without this one).
+
+| Repo | Modality |
 |---|---|
-| `intro-to-QUAlibrate/` | `qua-libs-superconducting` |
-| `intro-to-qdac2/` | `qua-libs-quantum-dots` |
-| `intro-to-quam/trapped_ion/` | `qua-libs-trapped-ion` |
+| [qua-libs-superconducting](../qua-libs-superconducting/) | Superconducting transmons |
+| [qua-libs-nv](../qua-libs-nv/) | NV / optically addressable spin qubits |
+| [qua-libs-quantum-dots](../qua-libs-quantum-dots/) | Quantum dots |
+| [qua-libs-amo](../qua-libs-amo/) | AMO (Rydberg, cavity locking) |
+| [qua-libs-trapped-ion](../qua-libs-trapped-ion/) | Trapped-ion QUAM tutorial |
 
-## TODO
+## Running the tutorials
 
-- [ ] Document directory structure and how tutorials relate to each other
-- [ ] Explain how to run examples (Python version, `qm-qua`, simulation vs hardware)
-- [ ] Define dependency policy — likely minimal (`qm-qua`, `qualang-tools`); modality repos add more
-- [ ] Decide whether `Tutorials/intro-to-quam/` should link to `qua-libs-trapped-ion` for the trapped-ion walkthrough
-- [ ] Add CONTRIBUTING.md (adapt from original qua-libs)
-- [ ] Clarify relationship to `qua-libs-meta` umbrella repo
+Requires Python 3.10–3.12. With [uv](https://docs.astral.sh/uv/), `uv sync`
+creates an environment with the dependencies the tutorials use; then run any
+tutorial script. See `CONTRIBUTING.md` for the full dev workflow.
