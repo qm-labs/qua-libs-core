@@ -1,35 +1,39 @@
-# qua-libs-core
+![Banner](GITHUB-BANNER.jpg)
 
-The entry point for the modality-split **qua-libs**. This repo hosts the
-generic, modality-agnostic QUA tutorials and serves as the landing page that
-points to the per-modality repositories. It is **not** an installable package.
+[![discord](https://img.shields.io/discord/806244683403100171?label=QUA&logo=Discord&style=plastic)](https://discord.gg/7FfhhpswbP)
+[![License](https://img.shields.io/badge/license-see%20LICENSE-blue.svg)](./LICENSE)
 
-> Eventually this repo will be renamed to **`qua-libs`** and replace the original
-> monolithic repository — but that deprecation is **not happening yet**. The
-> original [qua-libs](https://github.com/qua-platform/qua-libs) remains canonical
-> for now.
+<!-- Netlify (docs deploy) and Zenodo (citable DOI) badges are placeholders;
+     fill in the IDs once this repo has its own Netlify site and Zenodo record. -->
+[![Netlify Status](https://api.netlify.com/api/v1/badges/REPLACE_WITH_NETLIFY_SITE_ID/deploy-status)](https://app.netlify.com/sites/qua-libs-core/deploys)
+[![DOI](https://zenodo.org/badge/REPLACE_WITH_ZENODO_ID.svg)](https://zenodo.org/badge/latestdoi/REPLACE_WITH_ZENODO_ID)
 
-## Generic tutorials (here)
+# QUA Libraries
 
-`Tutorials/` — modality-agnostic OPX/QUA lessons: timing, streams, demodulation,
-simulation, macros, Octave, chirps, saving, and more. Start here to learn QUA
-without pulling in any modality-specific code.
+Hey! Glad to see you there!
 
-## Modality repositories
+Welcome to the QUA libraries. Your one-stop-shop for a batteries-included QUA experience.
 
-Each modality repo is **fully standalone** — install and run it without any of
-the others (and without this one).
+This repo is where we share the general-purpose tutorials and tools that aren't tied to any particular qubit platform, and it points you to the platform-specific libraries below.
 
-| Repo | Modality |
+It includes:
+* The ["Tutorials"](./Tutorials) folder contains various tutorials and guides for working with the OPX — timing, streams, demodulation, simulation, macros, Octave, and more.
+
+## QUA libraries by platform
+
+Examples, use cases, and calibration protocols for specific qubit platforms live in their own repositories:
+
+| Repository | Platform |
 |---|---|
-| [qua-libs-superconducting](../qua-libs-superconducting/) | Superconducting transmons |
-| [qua-libs-nv](../qua-libs-nv/) | NV / optically addressable spin qubits |
-| [qua-libs-quantum-dots](../qua-libs-quantum-dots/) | Quantum dots |
-| [qua-libs-amo](../qua-libs-amo/) | AMO (Rydberg, cavity locking) |
-| [qua-libs-trapped-ion](../qua-libs-trapped-ion/) | Trapped-ion QUAM tutorial |
+| [qua-libs-superconducting](https://github.com/qua-platform/qua-libs-superconducting) | Superconducting transmons |
+| [qua-libs-nv](https://github.com/qua-platform/qua-libs-nv) | NV / optically addressable spin qubits |
+| [qua-libs-quantum-dots](https://github.com/qua-platform/qua-libs-quantum-dots) | Quantum dots |
+| [qua-libs-amo](https://github.com/qua-platform/qua-libs-amo) | AMO (Rydberg, cavity locking) |
+| [qua-libs-trapped-ion](https://github.com/qua-platform/qua-libs-trapped-ion) | Trapped ions |
 
-## Running the tutorials
-
-Requires Python 3.10–3.12. With [uv](https://docs.astral.sh/uv/), `uv sync`
-creates an environment with the dependencies the tutorials use; then run any
-tutorial script. See `CONTRIBUTING.md` for the full dev workflow.
+## Support and Contribution
+This is a beta version of the repo, and thus, if you see quirks and inaccuracies please tell us!
+Love to see some example that's not yet included? tell us! Have a request for a general purpose procedure? tell us!
+Already have something cool that others could use? Open a pull request! You can follow [this guide](./CONTRIBUTING.md) and feel free to contact us if you need any help.
+Issue reporting and requests should be done via the [GitHub issues system](https://github.com/qua-platform/qua-libs-core/issues), that should give a transparent experience where all users can see what's coming and which issues are already known.
+We hope this repo becomes a useful resource, giving real contribution to the community, and we'd love to see your ideas and contributions too!
