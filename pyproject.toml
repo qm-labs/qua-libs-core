@@ -1,13 +1,16 @@
 # qua-libs-core is the entry-point repo for the modality-split qua-libs: it holds
 # the generic, modality-agnostic QUA tutorials and is the landing page for the
-# per-modality repos. It is NOT an installable package. `package = false` is the
-# uv-native equivalent of the original qua-libs Poetry `package-mode = false`.
+# per-modality repos. It also ships the importable `qua_libs_core` package, whose
+# `qua_libs_core.telemetry` subpackage is shared OpenTelemetry + Uptrace
+# instrumentation consumed by the per-modality repos.
 #
-# Runtime dependencies are derived from the imports the Tutorials actually use.
+# Runtime dependencies are derived from the imports the Tutorials actually use,
+# plus the shared `telemetry` package's OpenTelemetry/Uptrace stack. Telemetry is
+# off by default at runtime, so the libraries being installed never sends data.
 
 [project]
 name = "qua-libs-core"
-version = "0"
+dynamic = ["version"]
 description = "Generic QUA tutorials and landing page for the modality-split qua-libs"
 license = { text = "BSD-3-Clause" }
 authors = [{ name = "Quantum Machines", email = "info@quantum-machines.co" }]
@@ -20,13 +23,32 @@ dependencies = [
     "scipy>=1.7.0",
     "matplotlib>=3.2.2",
     "plotly>=5.24.1",
+    # Telemetry stack for the shared `telemetry` package. Regular deps (not an
+    # extra): the heavy piece — grpcio/protobuf — is already pulled in by qm-qua,
+    # so these add only small pure-Python wrappers. Telemetry is off by default at
+    # runtime (TelemetryConfig.enabled), so installing them never emits anything.
+    "uptrace>=1.20.0",
+    "opentelemetry-api>=1.20.0",
+    "opentelemetry-sdk>=1.20.0",
+    "opentelemetry-exporter-otlp>=1.20.0",
 ]
 
-[tool.uv]
-package = false
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "qua_libs_core/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["qua_libs_core"]
 
 [dependency-groups]
-dev = ["black>=24.3,<25", "ruff>=0.6,<1"]
+dev = ["black>=24.3,<25", "ruff>=0.6,<1", "pytest>=8.0"]
+
+[tool.pytest.ini_options]
+# Tests live outside the `telemetry` package so they are not shipped in the wheel.
+testpaths = ["tests"]
 
 [tool.black]
 line-length = 120
