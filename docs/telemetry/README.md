@@ -11,6 +11,31 @@ A flexible and scalable telemetry module for OpenTelemetry + Uptrace integration
 - **Utilities**: Helper functions for common telemetry operations
 - **Configurable**: Enable/disable via environment variables
 
+## Enabling telemetry
+
+Telemetry is **off by default**. To turn it on you set **two** environment variables — a
+switch and a destination — and nothing else:
+
+```bash
+# Linux / macOS
+export UPTRACE_ENABLED="true"
+export UPTRACE_DSN="<your Uptrace endpoint>"    # Uptrace Cloud DSN, or a self-hosted one
+```
+
+```powershell
+# Windows (PowerShell)
+$env:UPTRACE_ENABLED = "true"
+$env:UPTRACE_DSN     = "<your Uptrace endpoint>"
+```
+
+With both set, instrumented code (see [Quick Start](#quick-start) below) sends its spans to
+that endpoint.
+
+- **Both are required.** `UPTRACE_ENABLED=true` *without* a `UPTRACE_DSN` stays disabled (it
+  warns and does nothing) — there's nowhere to send to.
+- **No endpoint yet?** [SELF_HOSTING.md](SELF_HOSTING.md) spins up a local Uptrace with one command.
+- Leave either one unset to keep telemetry off (the default).
+
 ## Quick Start
 
 ### 1. Initialize Telemetry
@@ -238,3 +263,6 @@ init_telemetry(TelemetryConfig(enabled=True, dsn="https://your-dsn@api.uptrace.d
 To keep it off, simply do nothing (the default), or set `UPTRACE_ENABLED="false"` explicitly.
 If telemetry is enabled but no DSN is provided, it logs a warning and stays disabled rather than
 crashing.
+
+For an offline / on-prem destination instead of Uptrace Cloud, see
+[SELF_HOSTING.md](SELF_HOSTING.md).

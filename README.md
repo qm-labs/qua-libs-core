@@ -1,7 +1,7 @@
 ![Banner](GITHUB-BANNER.jpg)
 
 [![discord](https://img.shields.io/discord/806244683403100171?label=QUA&logo=Discord&style=plastic)](https://discord.gg/7FfhhpswbP)
-[![License](https://img.shields.io/badge/license-see%20LICENSE-blue.svg)](./LICENSE)
+[![License](https://img.shields.io/badge/license-Proprietary-blue.svg)](./LICENSE)
 
 <!-- Netlify (docs deploy) and Zenodo (citable DOI) badges are placeholders;
      fill in the IDs once this repo has its own Netlify site and Zenodo record. -->
@@ -18,6 +18,22 @@ This repo is where we share the general-purpose tutorials and tools that aren't 
 
 It includes:
 * The ["Tutorials"](./Tutorials) folder contains various tutorials and guides for working with the OPX — timing, streams, demodulation, simulation, macros, Octave, and more.
+
+## Installing
+
+`qua-libs-core` is published on PyPI — like `qm-qua` and `qualang-tools`:
+
+```bash
+pip install qua-libs-core
+```
+
+That gives you the importable `qua_libs_core` package, including the shared `qua_libs_core.telemetry` instrumentation used across the qua-libs repositories (telemetry is **off by default**).
+
+If you also want the **tutorials**, clone this repository instead of (or in addition to) installing the package:
+
+```bash
+git clone https://github.com/qua-platform/qua-libs-core
+```
 
 ## QUA libraries by platform
 

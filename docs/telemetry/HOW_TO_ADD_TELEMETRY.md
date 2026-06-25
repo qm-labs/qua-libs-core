@@ -108,8 +108,9 @@ export UPTRACE_ENABLED="true"
 export UPTRACE_DSN="https://<your-dsn>@api.uptrace.dev?grpc=4317"   # cloud or self-hosted
 ```
 
-Point `UPTRACE_DSN` at Uptrace Cloud or your **self-hosted** Uptrace server (see the
-self-host setup docs for offline use).
+Point `UPTRACE_DSN` at Uptrace Cloud or your **self-hosted** Uptrace server. For an offline /
+on-prem setup, see [SELF_HOSTING.md](SELF_HOSTING.md) — note that self-hosted ingest uses
+ports `14317`/`14318`, not the cloud `4317`/`4318`.
 
 ### Option B — Edit `project_config.py`
 
