@@ -38,9 +38,7 @@ def add_span_event(span: Span, name: str, attributes: Optional[dict] = None) -> 
     span.add_event(name, attributes or {})
 
 
-def record_exception(
-    span: Span, exception: Exception, attributes: Optional[dict] = None
-) -> None:
+def record_exception(span: Span, exception: Exception, attributes: Optional[dict] = None) -> None:
     """
     Record an exception on a span.
 
@@ -103,4 +101,5 @@ def get_current_span() -> Span:
             set_span_attribute(span, "fit.q1", "successful")
     """
     from opentelemetry import trace
+
     return trace.get_current_span()

@@ -35,23 +35,15 @@ class TelemetryConfig:
         """
         self.dsn = dsn or os.getenv("UPTRACE_DSN")
         self.resource_attributes = resource_attributes or {}
-        self.service_name = service_name or os.getenv(
-            "UPTRACE_SERVICE_NAME", "qm-service"
-        )
-        self.service_version = service_version or os.getenv(
-            "UPTRACE_SERVICE_VERSION", "1.0.0"
-        )
-        self.deployment_environment = deployment_environment or os.getenv(
-            "UPTRACE_ENV", "production"
-        )
+        self.service_name = service_name or os.getenv("UPTRACE_SERVICE_NAME", "qm-service")
+        self.service_version = service_version or os.getenv("UPTRACE_SERVICE_VERSION", "1.0.0")
+        self.deployment_environment = deployment_environment or os.getenv("UPTRACE_ENV", "production")
 
         # Whether telemetry is enabled. OFF by default: telemetry is strictly
         # opt-in, so an unconfigured install never attempts to send anything.
         # Enable with UPTRACE_ENABLED=true (or pass enabled=True explicitly).
         enabled_str = os.getenv("UPTRACE_ENABLED", "false").lower()
-        self.enabled = (
-            enabled if enabled is not None else (enabled_str in ("true", "1", "yes"))
-        )
+        self.enabled = enabled if enabled is not None else (enabled_str in ("true", "1", "yes"))
 
         # NOTE: the "enabled but no DSN" case is handled in init_telemetry (warn and
         # stay disabled) rather than raising here. PROJECT_CONFIG is built at import

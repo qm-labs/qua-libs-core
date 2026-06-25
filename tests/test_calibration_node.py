@@ -207,9 +207,7 @@ class TestBackwardCompatibility:
 class TestExtraAttributes:
     def test_extra_attributes_read_from_parameters(self, node):
         """extra_attributes should capture additional fields from node.parameters."""
-        _instrument_with_disabled_uptrace(
-            node, extra_attributes=["qubits", "frequency_detuning_in_mhz"]
-        )
+        _instrument_with_disabled_uptrace(node, extra_attributes=["qubits", "frequency_detuning_in_mhz"])
 
         span_ref = {}
 
@@ -222,9 +220,7 @@ class TestExtraAttributes:
 
     def test_missing_extra_attribute_is_silently_skipped(self, node):
         """If an extra attribute doesn't exist on node.parameters, no error."""
-        _instrument_with_disabled_uptrace(
-            node, extra_attributes=["nonexistent_param"]
-        )
+        _instrument_with_disabled_uptrace(node, extra_attributes=["nonexistent_param"])
 
         ran = []
 
