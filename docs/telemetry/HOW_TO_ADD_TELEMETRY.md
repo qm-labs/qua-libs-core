@@ -101,31 +101,36 @@ def custom_param(node):
 
 Telemetry is off by default. Choose **one** of the following.
 
-### Option A — Environment variables (no code change)
+### Option A — Project config file (recommended)
+
+Create `.qua-libs/telemetry.toml` in your calibration project directory (the same
+folder where you run `setup-qualibrate-config`). The qua-libs installer writes
+this file when you opt in to telemetry.
+
+```toml
+[telemetry]
+enabled = true
+dsn = "http://project1_secret@localhost:14318?grpc=14317"   # local self-hosted Uptrace
+service_name = "your-system-name"
+deployment_environment = "local"
+```
+
+All calibration files pick up the change automatically — no environment variables
+and no edits inside the installed package. Environment variables still override
+the file if you need a temporary change.
+
+### Option B — Environment variables (no files)
+
+The default destination is a **self-hosted local Uptrace**. Stand one up with
+`setup_uptrace_local.sh` (see [SELF_HOSTING.md](SELF_HOSTING.md)), then:
 
 ```bash
 export UPTRACE_ENABLED="true"
-export UPTRACE_DSN="https://<your-dsn>@api.uptrace.dev?grpc=4317"   # cloud or self-hosted
+export UPTRACE_DSN="http://project1_secret@localhost:14318?grpc=14317"   # local self-hosted
 ```
 
-Point `UPTRACE_DSN` at Uptrace Cloud or your **self-hosted** Uptrace server. For an offline /
-on-prem setup, see [SELF_HOSTING.md](SELF_HOSTING.md) — note that self-hosted ingest uses
-ports `14317`/`14318`, not the cloud `4317`/`4318`.
-
-### Option B — Edit `project_config.py`
-
-Set the DSN and flip `enabled=True` in `qua_libs_core/telemetry/project_config.py`. All calibration files
-pick up the change automatically — no other files need to be touched.
-
-```python
-PROJECT_CONFIG = TelemetryConfig(
-    dsn="https://<your-dsn>@api.uptrace.dev?grpc=4317",
-    service_name="your-system-name",
-    service_version="1.0.0",
-    deployment_environment="experiment",
-    enabled=True,
-)
-```
+To use Uptrace Cloud instead, point `UPTRACE_DSN` at your cloud DSN — same code, just a
+different value. (Self-hosted ingest uses ports `14317`/`14318`, not the cloud `4317`/`4318`.)
 
 > If telemetry is enabled but no DSN is provided, it logs a warning and stays disabled — it will
 > never crash a calibration run.
@@ -153,7 +158,7 @@ When telemetry is on, the following calibration steps are automatically wrapped 
 
 - [ ] Added `from qua_libs_core.telemetry import instrument_calibration_node` at the top
 - [ ] Added `instrument_calibration_node(node)` right after node creation
-- [ ] To see data: set `UPTRACE_ENABLED=true` and `UPTRACE_DSN=...` (or edit `project_config.py`)
+- [ ] To see data: add `.qua-libs/telemetry.toml` (or set `UPTRACE_ENABLED=true` and `UPTRACE_DSN=...`)
 - [ ] Ran the file and checked Uptrace for spans
 
 ---

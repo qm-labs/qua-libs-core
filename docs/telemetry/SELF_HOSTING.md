@@ -1,16 +1,16 @@
-# Self-Hosting Uptrace (offline / on-prem telemetry)
+# Self-Hosting Uptrace (the default telemetry destination)
 
-`qua_libs_core.telemetry` is off by default, and when enabled it can send to **either**
-Uptrace Cloud **or** a **self-hosted** Uptrace server. Self-hosting keeps all telemetry on
-your own network — nothing leaves the machine/site — which is the right choice for
-QM-managed systems and air-gapped or privacy-sensitive installations.
+`qua_libs_core.telemetry` is off by default. When you enable it, the **standard, recommended
+destination is a self-hosted Uptrace** — all telemetry stays on your own machine/network,
+nothing leaves the site. This is the right default for QM-managed systems and for air-gapped
+or privacy-sensitive installations. (Uptrace Cloud also works — it's just a different
+`UPTRACE_DSN` value; see the note at the end.)
 
-**No code changes are needed.** The package already reads its destination from `UPTRACE_DSN`
-(or `project_config.py`) and passes it straight to `uptrace.configure_opentelemetry(dsn=...)`.
-Switching from cloud to self-hosted is purely a matter of pointing that DSN at your local
-server. This is the condensed, package-specific version; the full vendor walkthrough (other
-languages, metrics/logs, persistence, full command reference) is the internal
-`uptrace_selfhost_guide.pdf` kept with the QM telemetry materials.
+**No code changes are needed.** The package reads its destination from `UPTRACE_DSN` (or
+`project_config.py`) and passes it straight to `uptrace.configure_opentelemetry(dsn=...)`.
+This is the condensed, package-specific version; the full vendor walkthrough (other languages,
+metrics/logs, persistence, full command reference) is the internal `uptrace_selfhost_guide.pdf`
+kept with the QM telemetry materials.
 
 ## Quick start (recommended): one command
 

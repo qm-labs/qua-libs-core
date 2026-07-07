@@ -1,24 +1,27 @@
 """
 Project-wide telemetry configuration.
 
-Telemetry is OFF by default. To turn it on, choose either:
-  - Environment variables (no code change): set UPTRACE_ENABLED=true and
-    UPTRACE_DSN=<your DSN>. Point the DSN at Uptrace Cloud or your self-hosted
-    Uptrace server (see the self-host setup docs).
-  - This file: pass enabled=True and dsn="..." below to turn telemetry on for
-    all calibration nodes without environment variables.
+Telemetry is OFF by default. To turn it on, choose one of:
+  - ``.qua-libs/telemetry.toml`` in your project (recommended for installers):
+    set ``enabled = true`` and ``dsn = "..."`` under ``[telemetry]``.
+  - Environment variables: ``UPTRACE_ENABLED=true`` and ``UPTRACE_DSN=<your DSN>``.
+  - This module's defaults below (or edit them in a fork).
 
-No DSN is shipped by default, so an unconfigured install never sends telemetry.
+Resolution order: env vars override the TOML file; the TOML file overrides the
+defaults below. No DSN is shipped by default, so an unconfigured install never
+sends telemetry.
 """
 
-from .config import TelemetryConfig
+from .file_config import build_project_config, load_telemetry_file_config
 
-PROJECT_CONFIG = TelemetryConfig(
-    # dsn defaults to the UPTRACE_DSN env var when omitted. Set it explicitly here
-    # to hard-code a destination (e.g. a self-hosted Uptrace) for all nodes.
-    service_name="qua-libs",
-    service_version="1.0.0",
-    deployment_environment="production",
-    # enabled defaults to the UPTRACE_ENABLED env var (off). Set enabled=True here
-    # to force telemetry on from this file regardless of the environment.
+_PROJECT_DEFAULTS = {
+    "service_name": "qua-libs",
+    "service_version": "1.0.0",
+    "deployment_environment": "production",
+    "enabled": False,
+}
+
+PROJECT_CONFIG = build_project_config(
+    defaults=_PROJECT_DEFAULTS,
+    file_values=load_telemetry_file_config(),
 )

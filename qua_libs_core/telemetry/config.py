@@ -74,7 +74,10 @@ def init_telemetry(config: Optional[TelemetryConfig] = None) -> None:
         config = TelemetryConfig()
 
     if not config.enabled:
-        print("Telemetry is disabled (off by default). Set UPTRACE_ENABLED=true to enable.")
+        print(
+            "Telemetry is disabled (off by default). "
+            "Set UPTRACE_ENABLED=true or add .qua-libs/telemetry.toml to enable."
+        )
         _telemetry_initialized = True
         return
 

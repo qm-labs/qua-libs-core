@@ -13,27 +13,38 @@ A flexible and scalable telemetry module for OpenTelemetry + Uptrace integration
 
 ## Enabling telemetry
 
-Telemetry is **off by default**. To turn it on you set **two** environment variables — a
-switch and a destination — and nothing else:
+Telemetry is **off by default**, and the standard destination is a **self-hosted local
+Uptrace** — your trace data stays on your own machine. Turning it on is two steps:
+
+**1. Stand up a local Uptrace** — one command (full details in [SELF_HOSTING.md](SELF_HOSTING.md)):
+
+```bash
+# from docs/telemetry/self-hosting/
+bash setup_uptrace_local.sh
+```
+
+**2. Enable telemetry** with **two** environment variables — a switch and the local DSN the
+script prints:
 
 ```bash
 # Linux / macOS
 export UPTRACE_ENABLED="true"
-export UPTRACE_DSN="<your Uptrace endpoint>"    # Uptrace Cloud DSN, or a self-hosted one
+export UPTRACE_DSN="http://project1_secret@localhost:14318?grpc=14317"
 ```
 
 ```powershell
 # Windows (PowerShell)
 $env:UPTRACE_ENABLED = "true"
-$env:UPTRACE_DSN     = "<your Uptrace endpoint>"
+$env:UPTRACE_DSN     = "http://project1_secret@localhost:14318?grpc=14317"
 ```
 
 With both set, instrumented code (see [Quick Start](#quick-start) below) sends its spans to
-that endpoint.
+your local Uptrace.
 
 - **Both are required.** `UPTRACE_ENABLED=true` *without* a `UPTRACE_DSN` stays disabled (it
   warns and does nothing) — there's nowhere to send to.
-- **No endpoint yet?** [SELF_HOSTING.md](SELF_HOSTING.md) spins up a local Uptrace with one command.
+- **Using Uptrace Cloud instead?** Point `UPTRACE_DSN` at your cloud DSN — that's the only
+  difference, no code change. Self-hosting is the default/recommended path.
 - Leave either one unset to keep telemetry off (the default).
 
 ## Quick Start
@@ -51,7 +62,7 @@ init_telemetry()
 # Option 2: Configure explicitly
 init_telemetry(
     TelemetryConfig(
-        dsn="https://your-dsn@api.uptrace.dev?grpc=4317",
+        dsn="http://project1_secret@localhost:14318?grpc=14317",
         service_name="my-service",
         service_version="1.0.0",
         deployment_environment="production",
@@ -129,14 +140,14 @@ You can configure telemetry via environment variables:
 Example:
 ### Bash
 ```bash
-export UPTRACE_DSN="https://your-dsn@api.uptrace.dev?grpc=4317"
+export UPTRACE_DSN="http://project1_secret@localhost:14318?grpc=14317"
 export UPTRACE_SERVICE_NAME="my-service"
 export UPTRACE_ENABLED="true"
 ```
 
 ### Powershell
 ```
-$env:UPTRACE_DSN = "https://your-dsn@api.uptrace.dev?grpc=4317"
+$env:UPTRACE_DSN = "http://project1_secret@localhost:14318?grpc=14317"
 $env:UPTRACE_SERVICE_NAME = "my-service"
 $env:UPTRACE_ENABLED = "true"
 ```
@@ -251,13 +262,13 @@ To enable it, set both the switch and a destination:
 
 ```bash
 export UPTRACE_ENABLED="true"
-export UPTRACE_DSN="https://your-dsn@api.uptrace.dev?grpc=4317"   # cloud or self-hosted
+export UPTRACE_DSN="http://project1_secret@localhost:14318?grpc=14317"   # local self-hosted (default)
 ```
 
 Or in code:
 
 ```python
-init_telemetry(TelemetryConfig(enabled=True, dsn="https://your-dsn@api.uptrace.dev?grpc=4317"))
+init_telemetry(TelemetryConfig(enabled=True, dsn="http://project1_secret@localhost:14318?grpc=14317"))
 ```
 
 To keep it off, simply do nothing (the default), or set `UPTRACE_ENABLED="false"` explicitly.
