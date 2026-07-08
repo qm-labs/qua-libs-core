@@ -15,6 +15,14 @@ LOCAL_CORE_MARKER = "# qua-libs-installer: local qua-libs-core override"
 
 
 @dataclass(frozen=True)
+class QualibrateSettings:
+    project: str
+    storage_location: str
+    calibration_library_folder: str
+    quam_state_path: str
+
+
+@dataclass(frozen=True)
 class TelemetrySettings:
     dsn: str
     self_host_dir: str
@@ -27,6 +35,7 @@ class InstallerSettings:
     default_python: str
     default_branch: str
     log_dir: Path
+    qualibrate: QualibrateSettings
     telemetry: TelemetrySettings
 
     @property
@@ -87,12 +96,23 @@ def load_manifest(
     modalities_data = _load_json(modalities_config)
 
     telemetry_data = installer_data.get("telemetry", {})
+    qualibrate_data = installer_data.get("qualibrate", {})
     settings = InstallerSettings(
         uv_version=installer_data["uv_version"],
         supported_python=tuple(installer_data["supported_python"]),
         default_python=installer_data["default_python"],
         default_branch=installer_data["default_branch"],
         log_dir=Path(installer_data["log_dir"]).expanduser(),
+        qualibrate=QualibrateSettings(
+            project=qualibrate_data.get("project", "QPU_project"),
+            storage_location=qualibrate_data.get(
+                "storage_location", "data/${#/qualibrate/project}"
+            ),
+            calibration_library_folder=qualibrate_data.get(
+                "calibration_library_folder", "calibrations"
+            ),
+            quam_state_path=qualibrate_data.get("quam_state_path", "quam_state"),
+        ),
         telemetry=TelemetrySettings(
             dsn=telemetry_data.get("dsn", ""),
             self_host_dir=telemetry_data.get("self_host_dir", "telemetry-self-host"),

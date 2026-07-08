@@ -4,6 +4,12 @@
   "default_python": "3.12",
   "default_branch": "main",
   "log_dir": "~/.qua-libs",
+  "qualibrate": {
+    "project": "QPU_project",
+    "storage_location": "data/${#/qualibrate/project}",
+    "calibration_library_folder": "calibrations",
+    "quam_state_path": "quam_state"
+  },
   "telemetry": {
     "dsn": "http://project1_secret@localhost:14318?grpc=14317",
     "self_host_dir": "telemetry-self-host"

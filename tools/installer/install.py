@@ -4,9 +4,10 @@ QUA Libraries installer wizard.
 
 Steps implemented:
   1. Interactive prompts and repository clone
-  2. uv bootstrap, Python venv, and package install (pip install -e . / uv sync)
+  2. uv bootstrap, Python venv, and package install
+  3. setup-qualibrate-config (non-interactive via qualibrate config --auto-accept)
 
-Later steps: qualibrate setup, optional telemetry (Uptrace + .qua-libs/telemetry.toml).
+Later steps: optional telemetry (Uptrace + .qua-libs/telemetry.toml).
 """
 
 from __future__ import annotations
@@ -34,6 +35,9 @@ from config import (
     Modality,
     load_manifest,
 )
+
+
+@dataclass
 class InstallPlan:
     modality: Modality
     dest: Path
@@ -401,6 +405,61 @@ def setup_python_environment(
     return workdir
 
 
+def venv_executable(workdir: Path, name: str) -> Path:
+    if sys.platform == "win32":
+        return workdir / ".venv" / "Scripts" / f"{name}.exe"
+    return workdir / ".venv" / "bin" / name
+
+
+def default_qualibrate_config_path() -> Path:
+    return Path.home() / ".qualibrate" / "config.toml"
+
+
+def setup_qualibrate(
+    workdir: Path,
+    settings: InstallerSettings,
+    args: argparse.Namespace,
+) -> bool:
+    """Run qualibrate config with project-relative defaults. Returns True if configured."""
+    qualibrate = venv_executable(workdir, "qualibrate")
+    if not qualibrate.is_file():
+        raise RuntimeError(f"qualibrate not found in virtual environment: {qualibrate}")
+
+    config_path = default_qualibrate_config_path()
+    if config_path.is_file():
+        if args.force_qualibrate:
+            logging.info("Re-running qualibrate config (--force-qualibrate)")
+        elif args.skip_qualibrate:
+            logging.info("Skipping qualibrate config (--skip-qualibrate)")
+            return False
+        elif args.yes:
+            logging.info("Qualibrate config already exists at %s; skipping", config_path)
+            return False
+        elif prompt_yes_no(f"\nQualibrate config already exists at {config_path}. Reconfigure?", default=False):
+            logging.info("Re-running qualibrate config")
+        else:
+            logging.info("Keeping existing qualibrate config")
+            return False
+
+    q = settings.qualibrate
+    cmd = [
+        str(qualibrate),
+        "config",
+        "--auto-accept",
+        "--project",
+        q.project,
+        "--storage-location",
+        str(workdir / q.storage_location),
+        "--calibration-library-folder",
+        str(workdir / q.calibration_library_folder),
+        "--quam-state-path",
+        str(workdir / q.quam_state_path),
+    ]
+    logging.info("Configuring QUAlibrate for project %s", q.project)
+    run_cmd(cmd, cwd=workdir)
+    return True
+
+
 def activation_hint(venv_dir: Path) -> str:
     if sys.platform == "win32":
         return f"{venv_dir}\\Scripts\\activate"
@@ -414,10 +473,11 @@ def print_summary(
     settings: InstallerSettings,
     *,
     env_skipped: bool,
+    qualibrate_configured: bool,
 ) -> None:
     venv_dir = workdir / ".venv"
     print("\n" + "=" * 60)
-    print(" Installation complete (through environment setup)")
+    print(" Installation complete")
     print("=" * 60)
     print(f"  Modality:     {plan.modality.key} ({plan.modality.label})")
     print(f"  Repository:   {repo_root}")
@@ -429,11 +489,16 @@ def print_summary(
         print(f"  Virtual env:  {venv_dir}")
         print(f"  Activate:     {activation_hint(venv_dir)}")
     print(f"  Telemetry:    {'yes (not configured yet)' if plan.enable_telemetry else 'no'}")
+    if plan.modality.qualibrate_setup:
+        if qualibrate_configured:
+            print(f"  QUAlibrate:   configured ({default_qualibrate_config_path()})")
+        elif env_skipped:
+            print("  QUAlibrate:   skipped (environment setup skipped)")
+        else:
+            print("  QUAlibrate:   skipped (existing config kept)")
     print(f"  Log file:     {settings.log_file}")
     print()
     print("Next installer steps (coming soon):")
-    if plan.modality.qualibrate_setup:
-        print("  • Run setup-qualibrate-config")
     if plan.enable_telemetry:
         print("  • Start local Uptrace (Docker) and write .qua-libs/telemetry.toml")
     if plan.modality.quam_readme:
@@ -479,6 +544,16 @@ def parse_args(argv: list[str] | None, manifest: Manifest) -> argparse.Namespace
         help="Clone only; skip uv/Python environment setup.",
     )
     parser.add_argument(
+        "--skip-qualibrate",
+        action="store_true",
+        help="Skip setup-qualibrate-config even for calibration modalities.",
+    )
+    parser.add_argument(
+        "--force-qualibrate",
+        action="store_true",
+        help="Re-run qualibrate config even if ~/.qualibrate/config.toml exists.",
+    )
+    parser.add_argument(
         "-y",
         "--yes",
         action="store_true",
@@ -502,7 +577,19 @@ def main(argv: list[str] | None = None) -> int:
         plan = build_plan(args, manifest)
         repo_root = clone_or_update(plan, args)
         workdir = setup_python_environment(plan, repo_root, args, manifest.settings)
-        print_summary(plan, repo_root, workdir, manifest.settings, env_skipped=args.skip_env)
+
+        qualibrate_configured = False
+        if plan.modality.qualibrate_setup and not args.skip_env and not args.skip_qualibrate:
+            qualibrate_configured = setup_qualibrate(workdir, manifest.settings, args)
+
+        print_summary(
+            plan,
+            repo_root,
+            workdir,
+            manifest.settings,
+            env_skipped=args.skip_env,
+            qualibrate_configured=qualibrate_configured,
+        )
     except subprocess.CalledProcessError as exc:
         logging.error("Command failed: %s", exc)
         return exc.returncode or 1
