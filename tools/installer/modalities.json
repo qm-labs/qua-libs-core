@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "modality_order": [
+    "superconducting",
+    "nv",
+    "quantum-dots",
+    "amo",
+    "trapped-ion"
+  ],
+  "modalities": {
+    "superconducting": {
+      "label": "Superconducting transmons",
+      "repo": "qua-platform/qua-libs-superconducting",
+      "install_type": "calibration",
+      "package_dir": "qualibration_graphs/superconducting",
+      "qualibrate_setup": true,
+      "quam_readme": "qualibration_graphs/superconducting/quam_config/README.md"
+    },
+    "nv": {
+      "label": "NV / optically addressable spin qubits",
+      "repo": "qua-platform/qua-libs-nv",
+      "install_type": "calibration",
+      "package_dir": "qualibration_graphs/nv_center",
+      "qualibrate_setup": true,
+      "quam_readme": "qualibration_graphs/nv_center/quam_config/README.md"
+    },
+    "quantum-dots": {
+      "label": "Quantum dots",
+      "repo": "qua-platform/qua-libs-quantum-dots",
+      "install_type": "examples",
+      "package_dir": ".",
+      "qualibrate_setup": false,
+      "quam_readme": null
+    },
+    "amo": {
+      "label": "AMO (Rydberg, cavity locking)",
+      "repo": "qua-platform/qua-libs-amo",
+      "install_type": "examples",
+      "package_dir": ".",
+      "qualibrate_setup": false,
+      "quam_readme": null
+    },
+    "trapped-ion": {
+      "label": "Trapped ions",
+      "repo": "qua-platform/qua-libs-trapped-ion",
+      "install_type": "examples",
+      "package_dir": ".",
+      "qualibrate_setup": false,
+      "quam_readme": null
+    }
+  }
+}

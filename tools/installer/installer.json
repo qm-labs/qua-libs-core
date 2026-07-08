@@ -1,0 +1,11 @@
+{
+  "uv_version": "0.6.14",
+  "supported_python": ["3.10", "3.11", "3.12"],
+  "default_python": "3.12",
+  "default_branch": "main",
+  "log_dir": "~/.qua-libs",
+  "telemetry": {
+    "dsn": "http://project1_secret@localhost:14318?grpc=14317",
+    "self_host_dir": "telemetry-self-host"
+  }
+}
