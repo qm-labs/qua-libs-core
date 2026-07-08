@@ -26,6 +26,13 @@ class QualibrateSettings:
 class TelemetrySettings:
     dsn: str
     self_host_dir: str
+    service_name: str
+    deployment_environment: str
+    health_url: str
+
+    @property
+    def bundle_dir(self) -> Path:
+        return INSTALLER_DIR / self.self_host_dir
 
 
 @dataclass(frozen=True)
@@ -116,6 +123,9 @@ def load_manifest(
         telemetry=TelemetrySettings(
             dsn=telemetry_data.get("dsn", ""),
             self_host_dir=telemetry_data.get("self_host_dir", "telemetry-self-host"),
+            service_name=telemetry_data.get("service_name", "qua-libs"),
+            deployment_environment=telemetry_data.get("deployment_environment", "local"),
+            health_url=telemetry_data.get("health_url", "http://localhost:14318"),
         ),
     )
 

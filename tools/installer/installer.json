@@ -12,6 +12,9 @@
   },
   "telemetry": {
     "dsn": "http://project1_secret@localhost:14318?grpc=14317",
-    "self_host_dir": "telemetry-self-host"
+    "self_host_dir": "telemetry-self-host",
+    "service_name": "qua-libs",
+    "deployment_environment": "local",
+    "health_url": "http://localhost:14318"
   }
 }

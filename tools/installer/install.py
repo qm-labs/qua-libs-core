@@ -6,8 +6,7 @@ Steps implemented:
   1. Interactive prompts and repository clone
   2. uv bootstrap, Python venv, and package install
   3. setup-qualibrate-config (non-interactive via qualibrate config --auto-accept)
-
-Later steps: optional telemetry (Uptrace + .qua-libs/telemetry.toml).
+  4. optional telemetry (Docker + local Uptrace + .qua-libs/telemetry.toml)
 """
 
 from __future__ import annotations
@@ -35,6 +34,7 @@ from config import (
     Modality,
     load_manifest,
 )
+from telemetry_setup import setup_telemetry, telemetry_config_path
 
 
 @dataclass
@@ -474,6 +474,7 @@ def print_summary(
     *,
     env_skipped: bool,
     qualibrate_configured: bool,
+    telemetry_configured: bool,
 ) -> None:
     venv_dir = workdir / ".venv"
     print("\n" + "=" * 60)
@@ -488,7 +489,14 @@ def print_summary(
     elif venv_dir.is_dir():
         print(f"  Virtual env:  {venv_dir}")
         print(f"  Activate:     {activation_hint(venv_dir)}")
-    print(f"  Telemetry:    {'yes (not configured yet)' if plan.enable_telemetry else 'no'}")
+    if plan.enable_telemetry:
+        if telemetry_configured:
+            print(f"  Telemetry:    enabled ({telemetry_config_path(workdir)})")
+            print(f"  Uptrace UI:   {settings.telemetry.health_url}")
+        else:
+            print("  Telemetry:    requested but setup did not complete (see log)")
+    else:
+        print("  Telemetry:    no")
     if plan.modality.qualibrate_setup:
         if qualibrate_configured:
             print(f"  QUAlibrate:   configured ({default_qualibrate_config_path()})")
@@ -498,15 +506,14 @@ def print_summary(
             print("  QUAlibrate:   skipped (existing config kept)")
     print(f"  Log file:     {settings.log_file}")
     print()
-    print("Next installer steps (coming soon):")
-    if plan.enable_telemetry:
-        print("  • Start local Uptrace (Docker) and write .qua-libs/telemetry.toml")
     if plan.modality.quam_readme:
         rel = plan.modality.quam_readme
-        print(f"  • Manual: build QUAM state — see {repo_root / rel}")
+        print(f"Next step: build your QUAM state — see {repo_root / rel}")
     print()
-    if not env_skipped and venv_dir.is_dir():
-        print("Your Python environment is ready. Activate it, then continue with QUAM setup above.")
+    if not env_skipped and (workdir / ".venv").is_dir():
+        print("Activate the virtual environment and continue with QUAM setup above.")
+    elif plan.enable_telemetry and telemetry_configured:
+        print("Telemetry is enabled. Run calibration nodes from the workdir to send spans to Uptrace.")
 
 
 def parse_args(argv: list[str] | None, manifest: Manifest) -> argparse.Namespace:
@@ -554,6 +561,16 @@ def parse_args(argv: list[str] | None, manifest: Manifest) -> argparse.Namespace
         help="Re-run qualibrate config even if ~/.qualibrate/config.toml exists.",
     )
     parser.add_argument(
+        "--skip-telemetry-setup",
+        action="store_true",
+        help="Skip Docker/Uptrace stack setup; only write .qua-libs/telemetry.toml.",
+    )
+    parser.add_argument(
+        "--force-telemetry",
+        action="store_true",
+        help="Re-run Uptrace stack setup even if it appears to be running.",
+    )
+    parser.add_argument(
         "-y",
         "--yes",
         action="store_true",
@@ -582,6 +599,10 @@ def main(argv: list[str] | None = None) -> int:
         if plan.modality.qualibrate_setup and not args.skip_env and not args.skip_qualibrate:
             qualibrate_configured = setup_qualibrate(workdir, manifest.settings, args)
 
+        telemetry_configured = False
+        if plan.enable_telemetry:
+            telemetry_configured = setup_telemetry(workdir, manifest.settings, args)
+
         print_summary(
             plan,
             repo_root,
@@ -589,6 +610,7 @@ def main(argv: list[str] | None = None) -> int:
             manifest.settings,
             env_skipped=args.skip_env,
             qualibrate_configured=qualibrate_configured,
+            telemetry_configured=telemetry_configured,
         )
     except subprocess.CalledProcessError as exc:
         logging.error("Command failed: %s", exc)
