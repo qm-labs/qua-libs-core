@@ -11,7 +11,6 @@ Steps implemented:
 
 from __future__ import annotations
 
-import argparse
 import io
 import logging
 import os
@@ -26,14 +25,8 @@ from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
 
-from config import (
-    INSTALLER_DIR,
-    LOCAL_CORE_MARKER,
-    InstallerSettings,
-    Manifest,
-    Modality,
-    load_manifest,
-)
+from config import INSTALLER_DIR, InstallerSettings, Manifest, Modality, load_manifest
+from install_options import InstallOptions, parse_args
 from telemetry_setup import setup_telemetry, telemetry_config_path
 
 
@@ -43,11 +36,12 @@ class InstallPlan:
     dest: Path
     enable_telemetry: bool
     python_version: str
-    local_core: Path | None = None
 
 
-def setup_logging(settings: InstallerSettings) -> None:
-    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
+def setup_logging(settings: InstallerSettings, *, gui: bool = False) -> None:
+    handlers: list[logging.Handler] = []
+    if not gui:
+        handlers.append(logging.StreamHandler(sys.stdout))
     try:
         settings.log_dir.mkdir(parents=True, exist_ok=True)
         handlers.append(logging.FileHandler(settings.log_file, encoding="utf-8"))
@@ -59,6 +53,7 @@ def setup_logging(settings: InstallerSettings) -> None:
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
         handlers=handlers,
+        force=True,
     )
 
 
@@ -132,15 +127,15 @@ def resolve_dest(modality: Modality, preset: str | None) -> Path:
     return Path(dest_raw).expanduser().resolve()
 
 
-def resolve_python_version(args: argparse.Namespace, settings: InstallerSettings) -> str:
+def resolve_python_version(options: InstallOptions, settings: InstallerSettings) -> str:
     supported = settings.supported_python
     default = settings.default_python
 
-    if args.python:
-        if args.python not in supported:
-            raise SystemExit(f"Unsupported Python {args.python!r}. Choose one of: {', '.join(supported)}")
-        return args.python
-    if args.yes:
+    if options.python:
+        if options.python not in supported:
+            raise SystemExit(f"Unsupported Python {options.python!r}. Choose one of: {', '.join(supported)}")
+        return options.python
+    if options.non_interactive:
         return default
     print(f"\nSupported Python versions: {', '.join(supported)}")
     choice = prompt("Python version", default)
@@ -149,33 +144,25 @@ def resolve_python_version(args: argparse.Namespace, settings: InstallerSettings
     return choice
 
 
-def resolve_local_core(args: argparse.Namespace) -> Path | None:
-    if args.local_core:
-        path = Path(args.local_core).expanduser().resolve()
-        if not (path / "pyproject.toml").is_file():
-            raise SystemExit(f"--local-core path has no pyproject.toml: {path}")
-        return path
-    return None
+def build_plan_from_options(manifest: Manifest, options: InstallOptions) -> InstallPlan:
+    modality = choose_modality(manifest, options.modality)
+    dest = resolve_dest(modality, options.dest)
 
-
-def build_plan(args: argparse.Namespace, manifest: Manifest) -> InstallPlan:
-    modality = choose_modality(manifest, args.modality)
-    dest = resolve_dest(modality, args.dest)
-
-    if args.telemetry is None:
-        enable_telemetry = prompt_yes_no("\nEnable telemetry (local Uptrace)?", default=False)
+    if options.telemetry is None:
+        if options.non_interactive:
+            enable_telemetry = False
+        else:
+            enable_telemetry = prompt_yes_no("\nEnable telemetry (local Uptrace)?", default=False)
     else:
-        enable_telemetry = args.telemetry
+        enable_telemetry = options.telemetry
 
-    python_version = resolve_python_version(args, manifest.settings)
-    local_core = resolve_local_core(args)
+    python_version = resolve_python_version(options, manifest.settings)
 
     return InstallPlan(
         modality=modality,
         dest=dest,
         enable_telemetry=enable_telemetry,
         python_version=python_version,
-        local_core=local_core,
     )
 
 
@@ -212,9 +199,9 @@ def git_pull(dest: Path) -> None:
     subprocess.run(["git", "-C", str(dest), "pull", "--ff-only"], check=True)
 
 
-def handle_existing_directory(dest: Path, args: argparse.Namespace) -> str:
-    if args.existing_action:
-        return args.existing_action
+def handle_existing_directory(dest: Path, options: InstallOptions) -> str:
+    if options.existing_action:
+        return options.existing_action
 
     print(f"\nDirectory already exists: {dest}")
     if (dest / ".git").is_dir() and git_available():
@@ -222,12 +209,12 @@ def handle_existing_directory(dest: Path, args: argparse.Namespace) -> str:
     return prompt_choice("What should we do?", ["reinstall", "skip", "abort"], "reinstall")
 
 
-def clone_or_update(plan: InstallPlan, args: argparse.Namespace) -> Path:
+def clone_or_update(plan: InstallPlan, options: InstallOptions) -> Path:
     dest = plan.dest
     modality = plan.modality
 
     if dest.exists():
-        action = handle_existing_directory(dest, args)
+        action = handle_existing_directory(dest, options)
         if action == "abort":
             raise SystemExit("Installation cancelled.")
         if action == "skip":
@@ -318,7 +305,7 @@ def download_uv(settings: InstallerSettings) -> Path:
     return target
 
 
-def ensure_uv(args: argparse.Namespace, settings: InstallerSettings) -> Path:
+def ensure_uv(options: InstallOptions, settings: InstallerSettings) -> Path:
     bundled = INSTALLER_DIR / "bin" / ("uv.exe" if sys.platform == "win32" else "uv")
     if bundled.is_file():
         return bundled
@@ -327,7 +314,7 @@ def ensure_uv(args: argparse.Namespace, settings: InstallerSettings) -> Path:
     if found:
         return Path(found)
 
-    if args.yes:
+    if options.non_interactive:
         return download_uv(settings)
 
     print("\nuv was not found (needed to create the Python environment).")
@@ -336,24 +323,6 @@ def ensure_uv(args: argparse.Namespace, settings: InstallerSettings) -> Path:
     raise RuntimeError(
         "uv is required. Install it manually: https://docs.astral.sh/uv/getting-started/installation/"
     )
-
-
-def write_local_core_override(workdir: Path, local_core: Path) -> None:
-    """Append [tool.uv.sources] to pyproject.toml for a local qua-libs-core checkout."""
-    pyproject = workdir / "pyproject.toml"
-    text = pyproject.read_text(encoding="utf-8")
-    marker = LOCAL_CORE_MARKER
-    if marker in text:
-        logging.info("Local qua-libs-core override already present in %s", pyproject)
-        return
-
-    block = (
-        f"\n{marker}\n"
-        "[tool.uv.sources]\n"
-        f'qua-libs-core = {{ path = "{local_core.as_posix()}", editable = true }}\n'
-    )
-    pyproject.write_text(text.rstrip() + block, encoding="utf-8")
-    logging.info("Appended local qua-libs-core source override to %s", pyproject)
 
 
 def ensure_python(uv: Path, python_version: str) -> None:
@@ -388,18 +357,16 @@ def install_packages(uv: Path, workdir: Path, modality: Modality) -> None:
 def setup_python_environment(
     plan: InstallPlan,
     repo_root: Path,
-    args: argparse.Namespace,
+    options: InstallOptions,
     settings: InstallerSettings,
 ) -> Path:
-    if args.skip_env:
+    if options.skip_env:
         logging.info("Skipping environment setup (--skip-env)")
         return package_path(repo_root, plan.modality)
 
     workdir = package_path(repo_root, plan.modality)
-    uv = ensure_uv(args, settings)
+    uv = ensure_uv(options, settings)
     ensure_python(uv, plan.python_version)
-    if plan.local_core:
-        write_local_core_override(workdir, plan.local_core)
     create_venv(uv, workdir, plan.python_version)
     install_packages(uv, workdir, plan.modality)
     return workdir
@@ -418,7 +385,7 @@ def default_qualibrate_config_path() -> Path:
 def setup_qualibrate(
     workdir: Path,
     settings: InstallerSettings,
-    args: argparse.Namespace,
+    options: InstallOptions,
 ) -> bool:
     """Run qualibrate config with project-relative defaults. Returns True if configured."""
     qualibrate = venv_executable(workdir, "qualibrate")
@@ -427,12 +394,12 @@ def setup_qualibrate(
 
     config_path = default_qualibrate_config_path()
     if config_path.is_file():
-        if args.force_qualibrate:
+        if options.force_qualibrate:
             logging.info("Re-running qualibrate config (--force-qualibrate)")
-        elif args.skip_qualibrate:
+        elif options.skip_qualibrate:
             logging.info("Skipping qualibrate config (--skip-qualibrate)")
             return False
-        elif args.yes:
+        elif options.non_interactive:
             logging.info("Qualibrate config already exists at %s; skipping", config_path)
             return False
         elif prompt_yes_no(f"\nQualibrate config already exists at {config_path}. Reconfigure?", default=False):
@@ -466,6 +433,50 @@ def activation_hint(venv_dir: Path) -> str:
     return f"source {venv_dir}/bin/activate"
 
 
+def build_summary_lines(
+    plan: InstallPlan,
+    repo_root: Path,
+    workdir: Path,
+    settings: InstallerSettings,
+    *,
+    env_skipped: bool,
+    qualibrate_configured: bool,
+    telemetry_configured: bool,
+) -> list[str]:
+    venv_dir = workdir / ".venv"
+    lines = [
+        "Installation complete",
+        f"Modality:     {plan.modality.key} ({plan.modality.label})",
+        f"Repository:   {repo_root}",
+        f"Workdir:      {workdir}",
+        f"Python:       {plan.python_version}",
+    ]
+    if env_skipped:
+        lines.append("Environment:  skipped (--skip-env)")
+    elif venv_dir.is_dir():
+        lines.append(f"Virtual env:  {venv_dir}")
+        lines.append(f"Activate:     {activation_hint(venv_dir)}")
+    if plan.enable_telemetry:
+        if telemetry_configured:
+            lines.append(f"Telemetry:    enabled ({telemetry_config_path(workdir)})")
+            lines.append(f"Uptrace UI:   {settings.telemetry.health_url}")
+        else:
+            lines.append("Telemetry:    requested but setup did not complete (see log)")
+    else:
+        lines.append("Telemetry:    no")
+    if plan.modality.qualibrate_setup:
+        if qualibrate_configured:
+            lines.append(f"QUAlibrate:   configured ({default_qualibrate_config_path()})")
+        elif env_skipped:
+            lines.append("QUAlibrate:   skipped (environment setup skipped)")
+        else:
+            lines.append("QUAlibrate:   skipped (existing config kept)")
+    lines.append(f"Log file:     {settings.log_file}")
+    if plan.modality.quam_readme:
+        lines.append(f"Next step:    build QUAM — see {repo_root / plan.modality.quam_readme}")
+    return lines
+
+
 def print_summary(
     plan: InstallPlan,
     repo_root: Path,
@@ -476,39 +487,19 @@ def print_summary(
     qualibrate_configured: bool,
     telemetry_configured: bool,
 ) -> None:
-    venv_dir = workdir / ".venv"
+    lines = build_summary_lines(
+        plan,
+        repo_root,
+        workdir,
+        settings,
+        env_skipped=env_skipped,
+        qualibrate_configured=qualibrate_configured,
+        telemetry_configured=telemetry_configured,
+    )
     print("\n" + "=" * 60)
-    print(" Installation complete")
+    for line in lines:
+        print(f"  {line}")
     print("=" * 60)
-    print(f"  Modality:     {plan.modality.key} ({plan.modality.label})")
-    print(f"  Repository:   {repo_root}")
-    print(f"  Workdir:      {workdir}")
-    print(f"  Python:       {plan.python_version}")
-    if env_skipped:
-        print("  Environment:  skipped (--skip-env)")
-    elif venv_dir.is_dir():
-        print(f"  Virtual env:  {venv_dir}")
-        print(f"  Activate:     {activation_hint(venv_dir)}")
-    if plan.enable_telemetry:
-        if telemetry_configured:
-            print(f"  Telemetry:    enabled ({telemetry_config_path(workdir)})")
-            print(f"  Uptrace UI:   {settings.telemetry.health_url}")
-        else:
-            print("  Telemetry:    requested but setup did not complete (see log)")
-    else:
-        print("  Telemetry:    no")
-    if plan.modality.qualibrate_setup:
-        if qualibrate_configured:
-            print(f"  QUAlibrate:   configured ({default_qualibrate_config_path()})")
-        elif env_skipped:
-            print("  QUAlibrate:   skipped (environment setup skipped)")
-        else:
-            print("  QUAlibrate:   skipped (existing config kept)")
-    print(f"  Log file:     {settings.log_file}")
-    print()
-    if plan.modality.quam_readme:
-        rel = plan.modality.quam_readme
-        print(f"Next step: build your QUAM state — see {repo_root / rel}")
     print()
     if not env_skipped and (workdir / ".venv").is_dir():
         print("Activate the virtual environment and continue with QUAM setup above.")
@@ -516,112 +507,77 @@ def print_summary(
         print("Telemetry is enabled. Run calibration nodes from the workdir to send spans to Uptrace.")
 
 
-def parse_args(argv: list[str] | None, manifest: Manifest) -> argparse.Namespace:
-    settings = manifest.settings
-    parser = argparse.ArgumentParser(description="Install a qua-libs modality repository.")
-    parser.add_argument(
-        "--modality",
-        choices=list(manifest.modality_order),
-        help="Modality to install (interactive prompt if omitted).",
-    )
-    parser.add_argument("--dest", help="Installation directory.")
-    parser.add_argument(
-        "--telemetry",
-        action=argparse.BooleanOptionalAction,
-        help="Enable telemetry setup (interactive prompt if omitted).",
-    )
-    parser.add_argument(
-        "--existing-action",
-        choices=["update", "reinstall", "skip", "abort"],
-        help="Action when the destination directory already exists.",
-    )
-    parser.add_argument(
-        "--python",
-        choices=list(settings.supported_python),
-        help=f"Python version for the virtual environment (default: {settings.default_python}).",
-    )
-    parser.add_argument(
-        "--local-core",
-        metavar="PATH",
-        help="Use a local qua-libs-core checkout instead of the git dependency (dev/local installs).",
-    )
-    parser.add_argument(
-        "--skip-env",
-        action="store_true",
-        help="Clone only; skip uv/Python environment setup.",
-    )
-    parser.add_argument(
-        "--skip-qualibrate",
-        action="store_true",
-        help="Skip setup-qualibrate-config even for calibration modalities.",
-    )
-    parser.add_argument(
-        "--force-qualibrate",
-        action="store_true",
-        help="Re-run qualibrate config even if ~/.qualibrate/config.toml exists.",
-    )
-    parser.add_argument(
-        "--skip-telemetry-setup",
-        action="store_true",
-        help="Skip Docker/Uptrace stack setup; only write .qua-libs/telemetry.toml.",
-    )
-    parser.add_argument(
-        "--force-telemetry",
-        action="store_true",
-        help="Re-run Uptrace stack setup even if it appears to be running.",
-    )
-    parser.add_argument(
-        "-y",
-        "--yes",
-        action="store_true",
-        help="Accept defaults where possible (non-interactive with --modality and --dest).",
-    )
-    return parser.parse_args(argv)
+def run_install(
+    manifest: Manifest,
+    options: InstallOptions,
+    plan: InstallPlan,
+) -> tuple[int, list[str]]:
+    try:
+        repo_root = clone_or_update(plan, options)
+        workdir = setup_python_environment(plan, repo_root, options, manifest.settings)
+
+        qualibrate_configured = False
+        if plan.modality.qualibrate_setup and not options.skip_env and not options.skip_qualibrate:
+            qualibrate_configured = setup_qualibrate(workdir, manifest.settings, options)
+
+        telemetry_configured = False
+        if plan.enable_telemetry:
+            telemetry_configured = setup_telemetry(workdir, manifest.settings, options)
+
+        summary = build_summary_lines(
+            plan,
+            repo_root,
+            workdir,
+            manifest.settings,
+            env_skipped=options.skip_env,
+            qualibrate_configured=qualibrate_configured,
+            telemetry_configured=telemetry_configured,
+        )
+        if not options.non_interactive:
+            print_summary(
+                plan,
+                repo_root,
+                workdir,
+                manifest.settings,
+                env_skipped=options.skip_env,
+                qualibrate_configured=qualibrate_configured,
+                telemetry_configured=telemetry_configured,
+            )
+        return 0, summary
+    except subprocess.CalledProcessError as exc:
+        logging.error("Command failed: %s", exc)
+        return exc.returncode or 1, [f"Command failed with exit code {exc.returncode or 1}"]
+    except (RuntimeError, SystemExit) as exc:
+        if isinstance(exc, SystemExit):
+            raise
+        logging.error("%s", exc)
+        return 1, [str(exc)]
 
 
 def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+
     try:
         manifest = load_manifest()
     except (FileNotFoundError, ValueError, KeyError) as exc:
         print(f"ERROR: Failed to load installer config: {exc}", file=sys.stderr)
         return 1
 
+    launch_gui = len(argv) == 0 or "--gui" in argv
+
+    if launch_gui:
+        from install_gui import main as gui_main
+
+        return gui_main()
+
     setup_logging(manifest.settings)
-    args = parse_args(argv, manifest)
+    options = parse_args(argv, manifest)
     logging.info("QUA Libraries installer started")
 
-    try:
-        plan = build_plan(args, manifest)
-        repo_root = clone_or_update(plan, args)
-        workdir = setup_python_environment(plan, repo_root, args, manifest.settings)
-
-        qualibrate_configured = False
-        if plan.modality.qualibrate_setup and not args.skip_env and not args.skip_qualibrate:
-            qualibrate_configured = setup_qualibrate(workdir, manifest.settings, args)
-
-        telemetry_configured = False
-        if plan.enable_telemetry:
-            telemetry_configured = setup_telemetry(workdir, manifest.settings, args)
-
-        print_summary(
-            plan,
-            repo_root,
-            workdir,
-            manifest.settings,
-            env_skipped=args.skip_env,
-            qualibrate_configured=qualibrate_configured,
-            telemetry_configured=telemetry_configured,
-        )
-    except subprocess.CalledProcessError as exc:
-        logging.error("Command failed: %s", exc)
-        return exc.returncode or 1
-    except (RuntimeError, SystemExit) as exc:
-        if isinstance(exc, SystemExit):
-            raise
-        logging.error("%s", exc)
-        return 1
-
-    return 0
+    plan = build_plan_from_options(manifest, options)
+    exit_code, _summary = run_install(manifest, options, plan)
+    return exit_code
 
 
 if __name__ == "__main__":

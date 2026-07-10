@@ -1,13 +1,18 @@
 # QUA Libraries installer launcher (Windows PowerShell).
-# Runs install.py; later steps will bootstrap uv + Python here.
+# Opens the GUI by default; pass arguments for the CLI installer.
 
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $InstallPy = Join-Path $ScriptDir "install.py"
+$InstallGui = Join-Path $ScriptDir "install_gui.py"
 
 foreach ($python in @("python3", "python", "py")) {
     if (Get-Command $python -ErrorAction SilentlyContinue) {
-        & $python $InstallPy @args
+        if ($args.Count -eq 0) {
+            & $python $InstallGui
+        } else {
+            & $python $InstallPy @args
+        }
         exit $LASTEXITCODE
     }
 }

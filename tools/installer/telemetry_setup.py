@@ -6,12 +6,12 @@ import logging
 import shutil
 import subprocess
 import sys
-from argparse import Namespace
 from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
 
 from config import INSTALLER_DIR, InstallerSettings
+from install_options import InstallOptions
 
 TELEMETRY_CONFIG_DIR = ".qua-libs"
 TELEMETRY_CONFIG_FILE = "telemetry.toml"
@@ -53,7 +53,7 @@ def docker_install_hint() -> str:
     return f"Install Docker Engine: {DOCKER_ENGINE_URL}"
 
 
-def check_docker(args: Namespace) -> bool:
+def check_docker(options: InstallOptions) -> bool:
     if docker_available():
         try:
             version = subprocess.run(
@@ -71,7 +71,11 @@ def check_docker(args: Namespace) -> bool:
         return False
 
     # Linux: the bundled setup script can install Docker via get.docker.com.
-    if args.yes or _prompt_yes_no("Attempt to install Docker automatically (Linux only)?", default=False):
+    if options.non_interactive or options.yes:
+        logging.info("Docker will be installed by the Uptrace setup script if needed")
+        return True
+
+    if _prompt_yes_no("Attempt to install Docker automatically (Linux only)?", default=False):
         logging.info("Docker will be installed by the Uptrace setup script")
         return True
 
@@ -129,24 +133,26 @@ def write_telemetry_config(workdir: Path, settings: InstallerSettings) -> Path:
 def setup_telemetry(
     workdir: Path,
     settings: InstallerSettings,
-    args: Namespace,
+    options: InstallOptions,
 ) -> bool:
     """
     Stand up local Uptrace (if needed) and write .qua-libs/telemetry.toml.
 
     Returns True when telemetry is fully configured, False when skipped or failed.
     """
-    if args.skip_telemetry_setup:
+    if options.skip_telemetry_setup:
         logging.info("Skipping Uptrace stack setup (--skip-telemetry-setup)")
         write_telemetry_config(workdir, settings)
         return True
 
     config_path = telemetry_config_path(workdir)
-    if config_path.is_file() and not args.force_telemetry:
+    if config_path.is_file() and not options.force_telemetry:
         if uptrace_healthy(settings.telemetry.health_url):
             logging.info("Telemetry already configured and Uptrace is healthy; skipping stack setup")
             return True
-        if args.yes:
+        if options.non_interactive:
+            logging.info("Telemetry config exists but Uptrace is not healthy; re-running setup")
+        elif options.yes:
             logging.info("Telemetry config exists but Uptrace is not healthy; re-running setup")
         elif not _prompt_yes_no(
             f"\nTelemetry config exists at {config_path} but Uptrace is not responding. Re-run setup?",
@@ -155,13 +161,13 @@ def setup_telemetry(
             logging.warning("Keeping existing telemetry config; Uptrace may not be running")
             return False
 
-    if not check_docker(args):
+    if not check_docker(options):
         logging.error("Docker is not available; skipping telemetry setup")
         return False
 
     bundle_dir = resolve_self_host_bundle(settings)
 
-    if uptrace_healthy(settings.telemetry.health_url) and not args.force_telemetry:
+    if uptrace_healthy(settings.telemetry.health_url) and not options.force_telemetry:
         logging.info("Uptrace already running at %s", settings.telemetry.health_url)
     else:
         try:

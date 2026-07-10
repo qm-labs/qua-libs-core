@@ -10,8 +10,34 @@ INSTALLER_DIR = Path(__file__).resolve().parent
 INSTALLER_CONFIG_FILE = INSTALLER_DIR / "installer.json"
 MODALITIES_FILE = INSTALLER_DIR / "modalities.json"
 
-# Marker appended to pyproject.toml by --local-core (implementation detail, not config).
-LOCAL_CORE_MARKER = "# qua-libs-installer: local qua-libs-core override"
+
+@dataclass(frozen=True)
+class UiTheme:
+    page: str
+    surface: str
+    ink: str
+    muted: str
+    heading: str
+    divider: str
+    accent: str
+    accent_hover: str
+    accent_inactive_bg: str
+    accent_inactive_fg: str
+    link: str
+    link_hover: str
+    log_bg: str
+    font_family: str
+    font_file: str | None
+    background_image: str | None
+    content_width_ratio: float
+    content_top_offset: int
+    content_padding: int
+    sidebar_width: int
+
+    def resolve_path(self, relative: str | None) -> Path | None:
+        if not relative:
+            return None
+        return INSTALLER_DIR / relative
 
 
 @dataclass(frozen=True)
@@ -42,6 +68,7 @@ class InstallerSettings:
     default_python: str
     default_branch: str
     log_dir: Path
+    ui: UiTheme
     qualibrate: QualibrateSettings
     telemetry: TelemetrySettings
 
@@ -104,12 +131,35 @@ def load_manifest(
 
     telemetry_data = installer_data.get("telemetry", {})
     qualibrate_data = installer_data.get("qualibrate", {})
+    ui_data = installer_data.get("ui", {})
     settings = InstallerSettings(
         uv_version=installer_data["uv_version"],
         supported_python=tuple(installer_data["supported_python"]),
         default_python=installer_data["default_python"],
         default_branch=installer_data["default_branch"],
         log_dir=Path(installer_data["log_dir"]).expanduser(),
+        ui=UiTheme(
+            page=ui_data.get("page", "#E5E5E5"),
+            surface=ui_data.get("surface", "#FFFFFF"),
+            ink=ui_data.get("ink", "#0E0E0E"),
+            muted=ui_data.get("muted", "#646464"),
+            heading=ui_data.get("heading", "#3A86FF"),
+            divider=ui_data.get("divider", "#D7D7D7"),
+            accent=ui_data.get("accent", "#3A86FF"),
+            accent_hover=ui_data.get("accent_hover", "#D3A55F"),
+            accent_inactive_bg=ui_data.get("accent_inactive_bg", "#1D1D1D"),
+            accent_inactive_fg=ui_data.get("accent_inactive_fg", "#999999"),
+            link=ui_data.get("link", "#3A86FF"),
+            link_hover=ui_data.get("link_hover", "#0E0E0E"),
+            log_bg=ui_data.get("log_bg", "#FFFFFF"),
+            font_family=ui_data.get("font_family", "IBM Plex Mono"),
+            font_file=ui_data.get("font_file"),
+            background_image=ui_data.get("background_image"),
+            content_width_ratio=float(ui_data.get("content_width_ratio", 0.68)),
+            content_top_offset=int(ui_data.get("content_top_offset", 0)),
+            content_padding=int(ui_data.get("content_padding", 40)),
+            sidebar_width=int(ui_data.get("sidebar_width", 300)),
+        ),
         qualibrate=QualibrateSettings(
             project=qualibrate_data.get("project", "QPU_project"),
             storage_location=qualibrate_data.get(
