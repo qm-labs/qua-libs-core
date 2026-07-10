@@ -1,7 +1,4 @@
 install.log
-assets/slide-*.png
-assets/qm_logo_color.png
-assets/header-accent.png
 bin/
 build/
 dist/

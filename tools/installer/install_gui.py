@@ -6,7 +6,9 @@ from __future__ import annotations
 import logging
 import os
 import queue
+import shutil
 import sys
+import tempfile
 import threading
 import tkinter as tk
 import tkinter.font as tkfont
@@ -63,6 +65,33 @@ def _ui_scale(root: tk.Misc) -> float:
 
 
 LOGO_DISPLAY_WIDTH = 240
+SETUP_WINDOW_WIDTH = 1000
+SETUP_WINDOW_HEIGHT = 640
+PROGRESS_WINDOW_WIDTH = 1000
+PROGRESS_WINDOW_HEIGHT = 780
+
+
+def _configure_tk_scaling(root: tk.Misc) -> None:
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        dpi = ctypes.windll.user32.GetDpiForSystem()
+        root.tk.call("tk", "scaling", dpi / 72.0)
+    except (OSError, tk.TclError, AttributeError):
+        pass
+
+
+def _icon_bitmap_path(path: Path) -> str:
+    """Tk on Windows cannot always load icons directly from a PyInstaller bundle."""
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    if getattr(sys, "frozen", False) and sys.platform == "win32":
+        dest = Path(tempfile.gettempdir()) / "qua_libs_installer.ico"
+        shutil.copy2(path, dest)
+        return str(dest)
+    return str(path.resolve())
 
 
 def _default_ui_family() -> str:
@@ -71,39 +100,6 @@ def _default_ui_family() -> str:
     if sys.platform == "darwin":
         return "Helvetica Neue"
     return "Ubuntu"
-
-
-def _register_font_file(font_path: Path) -> bool:
-    """Make a bundled TTF visible to Tk via the OS font registry. Returns True on success."""
-    try:
-        if sys.platform == "win32":
-            import ctypes
-
-            added = ctypes.windll.gdi32.AddFontResourceExW(str(font_path), 0x10, 0)
-            return bool(added)
-        if sys.platform == "darwin":
-            dest_dir = Path.home() / "Library" / "Fonts"
-        else:
-            dest_dir = Path.home() / ".local" / "share" / "fonts" / "qua-libs-installer"
-
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        dest = dest_dir / font_path.name
-        if not dest.exists() or dest.read_bytes() != font_path.read_bytes():
-            import shutil
-
-            shutil.copy2(font_path, dest)
-            if sys.platform != "darwin":
-                import shutil as _shutil
-
-                fc_cache = _shutil.which("fc-cache")
-                if fc_cache:
-                    import subprocess
-
-                    subprocess.run([fc_cache, "-f", str(dest_dir)], check=False)
-        return True
-    except OSError as exc:
-        logging.warning("Could not register bundled font %s: %s", font_path.name, exc)
-        return False
 
 
 def _pick_ui_family(root: tk.Misc, preferred: str) -> str:
@@ -121,12 +117,6 @@ class UiFont:
         self._root = root
         self._cache: dict[tuple[int, str], tkfont.Font] = {}
         preferred = theme.font_family.strip() or _default_ui_family()
-        font_path = theme.resolve_path(theme.font_file) if theme.font_file else None
-
-        if font_path and font_path.is_file():
-            if preferred not in tkfont.families(root):
-                if _register_font_file(font_path):
-                    self._root.update_idletasks()
         self._family = _pick_ui_family(root, preferred)
 
     def get(self, size: int = 10, weight: str = "normal") -> tkfont.Font:
@@ -308,14 +298,14 @@ class InstallerApp:
         self.install_thread: threading.Thread | None = None
         self.log_queue: queue.Queue[str] = queue.Queue()
         self._logo_image: tk.PhotoImage | None = None
+        self._icon_image: tk.PhotoImage | None = None
         self._poll_after_id: str | None = None
         self._closing = False
 
         self._setup_ttk()
         root.title("QUA Libraries Installer")
         root.configure(bg=self.theme.surface)
-        root.minsize(720, 480)
-        root.geometry("820x520")
+        root.minsize(860, 560)
         root.protocol("WM_DELETE_WINDOW", self._on_close)
 
         self.content = tk.Frame(root, bg=self.theme.surface)
@@ -331,16 +321,77 @@ class InstallerApp:
         self._show_page("setup")
         self._on_modality_selected()
         self._poll_log_queue()
+        self.root.after_idle(self._finalize_window)
+
+    def _finalize_window(self) -> None:
+        self._set_window_icon(self.root)
+        page = "progress" if self.progress_page.winfo_ismapped() else "setup"
+        if page == "progress":
+            self._apply_window_geometry(PROGRESS_WINDOW_WIDTH, PROGRESS_WINDOW_HEIGHT)
+        else:
+            self._apply_window_geometry(SETUP_WINDOW_WIDTH, SETUP_WINDOW_HEIGHT)
+
+    def _window_dimensions(self, base_width: int, base_height: int) -> tuple[int, int]:
+        self.root.update_idletasks()
+        screen_w = max(1, self.root.winfo_screenwidth())
+        screen_h = max(1, self.root.winfo_screenheight())
+        scale = max(1.0, _ui_scale(self.root))
+        width = max(int(base_width * scale), int(screen_w * 0.58))
+        height = max(int(base_height * scale), int(screen_h * 0.68))
+        return width, height
+
+    def _apply_window_geometry(self, base_width: int, base_height: int) -> None:
+        width, height = self._window_dimensions(base_width, base_height)
+        self.root.update_idletasks()
+        x = max(0, (self.root.winfo_screenwidth() - width) // 2)
+        y = max(0, (self.root.winfo_screenheight() - height) // 2)
+        self.root.geometry(f"{width}x{height}+{x}+{y}")
+        if sys.platform == "win32":
+            self._force_window_size_windows(width, height, x, y)
+
+    def _force_window_size_windows(self, width: int, height: int, x: int, y: int) -> None:
+        try:
+            import ctypes
+
+            hwnd = ctypes.windll.user32.GetParent(self.root.winfo_id())
+            if hwnd == 0:
+                hwnd = self.root.winfo_id()
+            SWP_NOZORDER = 0x0004
+            SWP_SHOWWINDOW = 0x0040
+            ctypes.windll.user32.SetWindowPos(hwnd, 0, x, y, width, height, SWP_NOZORDER | SWP_SHOWWINDOW)
+        except OSError:
+            pass
+
+    def _set_window_icon(self, root: tk.Misc) -> None:
+        ico_path = INSTALLER_DIR / "assets" / "qm_favicon.ico"
+        png_path = INSTALLER_DIR / "assets" / "qm_favicon_32.png"
+        try:
+            if sys.platform == "win32" and ico_path.is_file():
+                bitmap_path = _icon_bitmap_path(ico_path)
+                root.iconbitmap(default=bitmap_path)
+                root.wm_iconbitmap(bitmap_path)
+                return
+            if HAS_PIL and png_path.is_file():
+                hi_res = INSTALLER_DIR / "assets" / "qm_favicon_256.png"
+                source = hi_res if hi_res.is_file() else png_path
+                image = Image.open(source).convert("RGBA")
+                self._icon_image = ImageTk.PhotoImage(image)
+                root.iconphoto(True, self._icon_image)
+            elif png_path.is_file():
+                self._icon_image = tk.PhotoImage(file=str(png_path))
+                root.iconphoto(True, self._icon_image)
+        except (tk.TclError, OSError, FileNotFoundError) as exc:
+            logging.warning("Could not set window icon: %s", exc)
 
     def _show_page(self, page: str) -> None:
         self.setup_page.pack_forget()
         self.progress_page.pack_forget()
         if page == "setup":
             self.setup_page.pack(fill=tk.BOTH, expand=True)
-            self.root.geometry("820x520")
+            self._apply_window_geometry(SETUP_WINDOW_WIDTH, SETUP_WINDOW_HEIGHT)
         else:
             self.progress_page.pack(fill=tk.BOTH, expand=True)
-            self.root.geometry("820x700")
+            self._apply_window_geometry(PROGRESS_WINDOW_WIDTH, PROGRESS_WINDOW_HEIGHT)
 
     def _setup_ttk(self) -> None:
         theme = self.theme
@@ -378,10 +429,7 @@ class InstallerApp:
 
     def _load_logo(self, parent: tk.Misc) -> None:
         if self._logo_image is None:
-            assets = INSTALLER_DIR / "assets"
-            logo_path = assets / "qm_logo_header.png"
-            if not logo_path.is_file():
-                logo_path = assets / "qm_logo_color.png"
+            logo_path = INSTALLER_DIR / "assets" / "qm_logo_header.png"
             if not logo_path.is_file():
                 return
             try:
@@ -875,6 +923,7 @@ def main() -> int:
 
     _enable_dpi_awareness()
     root = tk.Tk()
+    _configure_tk_scaling(root)
     app = InstallerApp(root, manifest)
 
     queue_handler = QueueLogHandler(app.log_queue)

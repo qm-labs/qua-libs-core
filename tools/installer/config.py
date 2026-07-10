@@ -35,17 +35,7 @@ class UiTheme:
     link_hover: str
     log_bg: str
     font_family: str
-    font_file: str | None
-    background_image: str | None
-    content_width_ratio: float
-    content_top_offset: int
     content_padding: int
-    sidebar_width: int
-
-    def resolve_path(self, relative: str | None) -> Path | None:
-        if not relative:
-            return None
-        return INSTALLER_DIR / relative
 
 
 @dataclass(frozen=True)
@@ -160,13 +150,8 @@ def load_manifest(
             link=ui_data.get("link", "#3A86FF"),
             link_hover=ui_data.get("link_hover", "#0E0E0E"),
             log_bg=ui_data.get("log_bg", "#FFFFFF"),
-            font_family=ui_data.get("font_family", "IBM Plex Mono"),
-            font_file=ui_data.get("font_file"),
-            background_image=ui_data.get("background_image"),
-            content_width_ratio=float(ui_data.get("content_width_ratio", 0.68)),
-            content_top_offset=int(ui_data.get("content_top_offset", 0)),
+            font_family=ui_data.get("font_family", ""),
             content_padding=int(ui_data.get("content_padding", 40)),
-            sidebar_width=int(ui_data.get("sidebar_width", 300)),
         ),
         qualibrate=QualibrateSettings(
             project=qualibrate_data.get("project", "QPU_project"),

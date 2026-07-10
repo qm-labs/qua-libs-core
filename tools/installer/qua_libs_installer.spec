@@ -54,6 +54,7 @@ exe = EXE(
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
+    icon=str(installer_dir / "assets" / "qm_favicon.ico"),
     entitlements_file=None,
 )
 

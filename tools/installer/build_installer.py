@@ -108,6 +108,11 @@ def main() -> int:
     if not args.skip_uv:
         download_bundled_uv(uv_version, INSTALLER_DIR / "bin")
 
+    from generate_icons import generate_icons
+
+    print("Generating favicon assets...")
+    generate_icons()
+
     print("Running PyInstaller...")
     subprocess.run(
         [

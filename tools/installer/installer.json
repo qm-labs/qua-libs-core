@@ -19,12 +19,7 @@
     "link_hover": "#1A1A1A",
     "log_bg": "#FAFAFA",
     "font_family": "",
-    "font_file": null,
-    "background_image": null,
-    "content_width_ratio": 1.0,
-    "content_top_offset": 0,
-    "content_padding": 40,
-    "sidebar_width": 0
+    "content_padding": 40
   },
   "qualibrate": {
     "project": "QPU_project",
