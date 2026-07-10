@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-INSTALLER_DIR = Path(__file__).resolve().parent
+
+def _resolve_installer_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS"))
+    return Path(__file__).resolve().parent
+
+
+INSTALLER_DIR = _resolve_installer_dir()
 INSTALLER_CONFIG_FILE = INSTALLER_DIR / "installer.json"
 MODALITIES_FILE = INSTALLER_DIR / "modalities.json"
 
