@@ -20,7 +20,7 @@ import uptrace
 from opentelemetry.trace import Status, StatusCode
 
 from .config import init_telemetry, TelemetryConfig, get_tracer
-from .project_config import PROJECT_CONFIG
+from .project_config import load_project_config
 
 
 STANDARD_FUNCTIONS = [
@@ -57,7 +57,8 @@ def instrument_calibration_node(
 
     Args:
         node: A QualibrationNode instance.
-        config: Optional TelemetryConfig. If None, uses PROJECT_CONFIG.
+        config: Optional TelemetryConfig. If None, reloads ``.qua-libs/telemetry.toml``
+            from the current working directory (and parents).
         extra_attributes: Optional list of additional parameter names to capture
             from node.parameters as span attributes (extends the default set of
             operation, num_shots, timeout, load_data_id).
@@ -76,7 +77,7 @@ def instrument_calibration_node(
         The span is also available via node.namespace["_telemetry_span"].
     """
     if config is None:
-        config = PROJECT_CONFIG
+        config = load_project_config()
 
     # Auto-populate resource attributes from node name and current time
     auto_attrs = {

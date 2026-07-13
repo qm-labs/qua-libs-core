@@ -190,3 +190,25 @@ dsn = "http://token@localhost:14318?grpc=14317"
     importlib.reload(project_config)
     assert project_config.PROJECT_CONFIG.enabled is True
     assert project_config.PROJECT_CONFIG.dsn == "http://token@localhost:14318?grpc=14317"
+
+
+def test_load_project_config_reads_file_at_call_time(monkeypatch, tmp_path):
+    import importlib
+
+    import qua_libs_core.telemetry.project_config as project_config
+
+    monkeypatch.chdir(tmp_path)
+    importlib.reload(project_config)
+    assert project_config.load_project_config().enabled is False
+
+    _write_config(
+        tmp_path,
+        """
+[telemetry]
+enabled = true
+dsn = "http://token@localhost:14318?grpc=14317"
+""",
+    )
+    cfg = project_config.load_project_config()
+    assert cfg.enabled is True
+    assert cfg.dsn == "http://token@localhost:14318?grpc=14317"

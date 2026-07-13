@@ -31,7 +31,7 @@ from .utils import (
     get_current_span,
 )
 from .calibration_node import instrument_calibration_node
-from .project_config import PROJECT_CONFIG
+from .project_config import PROJECT_CONFIG, load_project_config
 
 
 __all__ = [
@@ -49,4 +49,5 @@ __all__ = [
     "get_current_span",
     "instrument_calibration_node",
     "PROJECT_CONFIG",
+    "load_project_config",
 ]

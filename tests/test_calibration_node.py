@@ -336,6 +336,40 @@ class TestResourceAttributes:
         assert PROJECT_CONFIG.resource_attributes == original_attrs
 
 
+class TestProjectConfigReload:
+    def test_instrumentation_reloads_telemetry_toml(self, monkeypatch, tmp_path):
+        """instrument_calibration_node should read telemetry.toml at call time."""
+        from qua_libs_core.telemetry.config import TelemetryConfig
+
+        config_dir = tmp_path / ".qua-libs"
+        config_dir.mkdir()
+        (config_dir / "telemetry.toml").write_text(
+            """
+[telemetry]
+enabled = true
+dsn = "http://token@localhost:14318?grpc=14317"
+service_name = "from-file"
+""",
+            encoding="utf-8",
+        )
+        monkeypatch.chdir(tmp_path)
+
+        captured: dict[str, TelemetryConfig] = {}
+
+        def capture_init(config):
+            captured["config"] = config
+
+        node = MockNode("reload_test")
+        with patch("qua_libs_core.telemetry.calibration_node.init_telemetry", side_effect=capture_init):
+            from qua_libs_core.telemetry import instrument_calibration_node
+
+            instrument_calibration_node(node)
+
+        assert captured["config"].enabled is True
+        assert captured["config"].dsn == "http://token@localhost:14318?grpc=14317"
+        assert captured["config"].service_name == "from-file"
+
+
 # ---------------------------------------------------------------------------
 # 4. get_current_span — accessible inside traced functions
 # ---------------------------------------------------------------------------

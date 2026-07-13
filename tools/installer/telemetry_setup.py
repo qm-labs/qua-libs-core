@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
 
-from config import INSTALLER_DIR, InstallerSettings
+from config import InstallerSettings
 from install_options import InstallOptions
 
 TELEMETRY_CONFIG_DIR = ".qua-libs"
@@ -28,12 +28,6 @@ def resolve_self_host_bundle(settings: InstallerSettings) -> Path:
     bundle = settings.telemetry.bundle_dir
     if bundle.is_dir() and (bundle / "setup_uptrace_local.sh").is_file():
         return bundle
-
-    # Dev fallback when running from a qua-libs-core checkout without a release zip.
-    fallback = INSTALLER_DIR.parent.parent / "docs" / "telemetry" / "self-hosting"
-    if fallback.is_dir():
-        logging.warning("Using fallback telemetry bundle from %s", fallback)
-        return fallback
 
     raise RuntimeError(
         f"Telemetry self-host bundle not found at {bundle}. "

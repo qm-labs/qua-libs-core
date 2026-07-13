@@ -2,10 +2,13 @@
 Telemetry configuration and initialization module.
 """
 
+import logging
 import os
 from typing import Optional, Dict, Any
 from opentelemetry import trace
 import uptrace
+
+logger = logging.getLogger(__name__)
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments,too-few-public-methods
 
@@ -74,7 +77,7 @@ def init_telemetry(config: Optional[TelemetryConfig] = None) -> None:
         config = TelemetryConfig()
 
     if not config.enabled:
-        print(
+        logger.info(
             "Telemetry is disabled (off by default). "
             "Set UPTRACE_ENABLED=true or add .qua-libs/telemetry.toml to enable."
         )
@@ -84,7 +87,7 @@ def init_telemetry(config: Optional[TelemetryConfig] = None) -> None:
     if not config.dsn:
         # Enabled but no destination configured. Stay disabled rather than crash —
         # telemetry must never break a calibration run.
-        print(
+        logger.warning(
             "Telemetry is enabled but no Uptrace DSN was provided. "
             "Set UPTRACE_DSN (or pass dsn=...). Telemetry stays disabled."
         )
@@ -101,9 +104,9 @@ def init_telemetry(config: Optional[TelemetryConfig] = None) -> None:
         )
         _tracer = trace.get_tracer(config.service_name, config.service_version)
         _telemetry_initialized = True
-        print(f"Telemetry initialized: {config.service_name} v{config.service_version}")
+        logger.info("Telemetry initialized: %s v%s", config.service_name, config.service_version)
     except Exception as e:
-        print(f"Failed to initialize telemetry: {e}")
+        logger.warning("Failed to initialize telemetry: %s", e)
         # Continue without telemetry rather than crashing
         _telemetry_initialized = True
 
