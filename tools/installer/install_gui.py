@@ -863,12 +863,32 @@ class InstallerApp:
             non_interactive=True,
         )
 
+    def _confirm_docker_for_telemetry(self) -> bool:
+        from telemetry_setup import docker_daemon_ready, docker_required_message, open_docker_install_page
+
+        if docker_daemon_ready():
+            return True
+
+        while not docker_daemon_ready():
+            if messagebox.askretrycancel("Docker required for telemetry", docker_required_message()):
+                continue
+            if messagebox.askyesno(
+                "Open Docker install page?",
+                "Open the Docker installation guide in your browser before trying again?",
+            ):
+                open_docker_install_page()
+            return False
+        return True
+
     def _start_install(self) -> None:
         if self.install_thread and self.install_thread.is_alive():
             return
 
         options = self._build_options_obj()
         if options is None:
+            return
+
+        if options.telemetry and not self._confirm_docker_for_telemetry():
             return
 
         self._show_page("progress")

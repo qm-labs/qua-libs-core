@@ -10,9 +10,10 @@
   "modalities": {
     "superconducting": {
       "label": "Superconducting transmons",
-      "repo": "qua-platform/qua-libs-superconducting",
+      "repo": "JacobFastQM/qua-libs-superconducting",
       "install_type": "calibration",
       "package_dir": "qualibration_graphs/superconducting",
+      "workspace": true,
       "qualibrate_setup": true,
       "quam_readme": "qualibration_graphs/superconducting/quam_config/README.md"
     },
@@ -21,6 +22,7 @@
       "repo": "qua-platform/qua-libs-nv",
       "install_type": "calibration",
       "package_dir": "qualibration_graphs/nv_center",
+      "workspace": true,
       "qualibrate_setup": true,
       "quam_readme": "qualibration_graphs/nv_center/quam_config/README.md"
     },

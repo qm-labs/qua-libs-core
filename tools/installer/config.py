@@ -89,6 +89,7 @@ class Modality:
     qualibrate_setup: bool
     quam_readme: str | None
     default_branch: str
+    workspace: bool
 
     @property
     def clone_url(self) -> str:
@@ -193,6 +194,7 @@ def load_manifest(
             qualibrate_setup=entry["qualibrate_setup"],
             quam_readme=entry.get("quam_readme"),
             default_branch=settings.default_branch,
+            workspace=bool(entry.get("workspace", False)),
         )
         for key, entry in raw_modalities.items()
     }

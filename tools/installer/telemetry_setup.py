@@ -6,6 +6,8 @@ import logging
 import shutil
 import subprocess
 import sys
+import webbrowser
+from collections.abc import Callable
 from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
@@ -20,8 +22,9 @@ DOCKER_DESKTOP_URL = "https://docs.docker.com/desktop/"
 DOCKER_ENGINE_URL = "https://docs.docker.com/engine/install/"
 
 
-def telemetry_config_path(workdir: Path) -> Path:
-    return workdir / TELEMETRY_CONFIG_DIR / TELEMETRY_CONFIG_FILE
+def telemetry_config_path(repo_root: Path) -> Path:
+    """Project telemetry config at the repository root (visible to all subfolders)."""
+    return repo_root / TELEMETRY_CONFIG_DIR / TELEMETRY_CONFIG_FILE
 
 
 def resolve_self_host_bundle(settings: InstallerSettings) -> Path:
@@ -39,41 +42,105 @@ def docker_available() -> bool:
     return shutil.which("docker") is not None
 
 
-def docker_install_hint() -> str:
+def docker_install_url() -> str:
     if sys.platform == "win32":
-        return f"Install Docker Desktop: {DOCKER_DESKTOP_URL}install/windows-install/"
+        return f"{DOCKER_DESKTOP_URL}install/windows-install/"
     if sys.platform == "darwin":
-        return f"Install Docker Desktop: {DOCKER_DESKTOP_URL}install/mac-install/"
-    return f"Install Docker Engine: {DOCKER_ENGINE_URL}"
+        return f"{DOCKER_DESKTOP_URL}install/mac-install/"
+    return DOCKER_ENGINE_URL
 
 
-def check_docker(options: InstallOptions) -> bool:
-    if docker_available():
-        try:
-            version = subprocess.run(
-                ["docker", "--version"], capture_output=True, text=True, check=True
-            ).stdout.strip()
-            logging.info("Docker found: %s", version)
-        except subprocess.CalledProcessError:
-            logging.info("Docker found")
+def docker_install_hint() -> str:
+    return f"Install Docker: {docker_install_url()}"
+
+
+def docker_daemon_ready() -> bool:
+    """True when the docker CLI exists and the daemon responds."""
+    if not docker_available():
+        return False
+    try:
+        subprocess.run(
+            ["docker", "info"],
+            capture_output=True,
+            check=True,
+            timeout=15,
+        )
         return True
-
-    print("\nDocker is required for local Uptrace telemetry.")
-    print(docker_install_hint())
-
-    if sys.platform == "win32" or sys.platform == "darwin":
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
         return False
 
-    # Linux: the bundled setup script can install Docker via get.docker.com.
-    if options.non_interactive or options.yes:
-        logging.info("Docker will be installed by the Uptrace setup script if needed")
+
+def docker_required_message() -> str:
+    if not docker_available():
+        return (
+            "Local Uptrace telemetry requires Docker.\n\n"
+            f"{docker_install_hint()}\n\n"
+            "Install Docker, start it, then choose Retry."
+        )
+    return (
+        "Docker is installed but the Docker engine is not running.\n\n"
+        "Start Docker Desktop (or the Docker service), then choose Retry."
+    )
+
+
+def ensure_docker(
+    options: InstallOptions,
+    *,
+    prompt_retry: Callable[[str], bool] | None = None,
+) -> bool:
+    """
+    Ensure Docker is installed and the daemon is reachable.
+
+    When *prompt_retry* is provided it is called with an explanatory message and
+    should return True to check again or False to abort. CLI mode uses stdin when
+    interactive; the GUI supplies a dialog callback on the main thread.
+    """
+    if docker_daemon_ready():
+        try:
+            version = subprocess.run(
+                ["docker", "--version"],
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+            logging.info("Docker ready: %s", version)
+        except subprocess.CalledProcessError:
+            logging.info("Docker ready")
         return True
 
-    if _prompt_yes_no("Attempt to install Docker automatically (Linux only)?", default=False):
-        logging.info("Docker will be installed by the Uptrace setup script")
+    message = docker_required_message()
+    logging.warning(message.replace("\n", " "))
+
+    if prompt_retry is not None:
+        while not docker_daemon_ready():
+            if not prompt_retry(message):
+                return False
+        logging.info("Docker is ready")
         return True
 
-    return False
+    if sys.platform not in ("win32", "darwin"):
+        if options.non_interactive or options.yes:
+            logging.info("Docker will be installed by the Uptrace setup script if needed (Linux)")
+            return True
+        if _prompt_yes_no("Attempt to install Docker automatically (Linux only)?", default=False):
+            logging.info("Docker will be installed by the Uptrace setup script")
+            return True
+        return False
+
+    if options.non_interactive:
+        print(f"\n{message}")
+        return False
+
+    print(f"\n{message}")
+    while not docker_daemon_ready():
+        if not _prompt_yes_no("Retry Docker check?", default=True):
+            return False
+    logging.info("Docker is ready")
+    return True
+
+
+def open_docker_install_page() -> None:
+    webbrowser.open(docker_install_url())
 
 
 def uptrace_healthy(health_url: str) -> bool:
@@ -106,9 +173,9 @@ def run_uptrace_setup(bundle_dir: Path) -> None:
     subprocess.run(cmd, check=True, cwd=bundle_dir)
 
 
-def write_telemetry_config(workdir: Path, settings: InstallerSettings) -> Path:
+def write_telemetry_config(repo_root: Path, settings: InstallerSettings) -> Path:
     telemetry = settings.telemetry
-    config_dir = workdir / TELEMETRY_CONFIG_DIR
+    config_dir = repo_root / TELEMETRY_CONFIG_DIR
     config_dir.mkdir(parents=True, exist_ok=True)
     config_path = config_dir / TELEMETRY_CONFIG_FILE
 
@@ -125,21 +192,26 @@ def write_telemetry_config(workdir: Path, settings: InstallerSettings) -> Path:
 
 
 def setup_telemetry(
-    workdir: Path,
+    repo_root: Path,
     settings: InstallerSettings,
     options: InstallOptions,
+    *,
+    prompt_retry: Callable[[str], bool] | None = None,
 ) -> bool:
     """
-    Stand up local Uptrace (if needed) and write .qua-libs/telemetry.toml.
+    Stand up local Uptrace (if needed) and write <repo>/.qua-libs/telemetry.toml.
+
+    The config lives at the repository root so scripts anywhere in the tree
+    (calibrations, Quantum-Control-Applications, etc.) pick it up without env vars.
 
     Returns True when telemetry is fully configured, False when skipped or failed.
     """
     if options.skip_telemetry_setup:
         logging.info("Skipping Uptrace stack setup (--skip-telemetry-setup)")
-        write_telemetry_config(workdir, settings)
+        write_telemetry_config(repo_root, settings)
         return True
 
-    config_path = telemetry_config_path(workdir)
+    config_path = telemetry_config_path(repo_root)
     if config_path.is_file() and not options.force_telemetry:
         if uptrace_healthy(settings.telemetry.health_url):
             logging.info("Telemetry already configured and Uptrace is healthy; skipping stack setup")
@@ -155,7 +227,7 @@ def setup_telemetry(
             logging.warning("Keeping existing telemetry config; Uptrace may not be running")
             return False
 
-    if not check_docker(options):
+    if not ensure_docker(options, prompt_retry=prompt_retry):
         logging.error("Docker is not available; skipping telemetry setup")
         return False
 
@@ -177,7 +249,7 @@ def setup_telemetry(
             )
             return False
 
-    write_telemetry_config(workdir, settings)
+    write_telemetry_config(repo_root, settings)
     return True
 
 

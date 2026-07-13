@@ -246,6 +246,18 @@ def package_path(repo_root: Path, modality: Modality) -> Path:
     return repo_root / modality.package_dir
 
 
+def env_root(repo_root: Path, modality: Modality) -> Path:
+    """Directory where uv creates .venv and runs sync (workspace root or package dir)."""
+    if modality.workspace:
+        return repo_root
+    return package_path(repo_root, modality)
+
+
+def calibration_workdir(repo_root: Path, modality: Modality) -> Path:
+    """Working directory for QUAlibrate paths and calibration-relative assets."""
+    return package_path(repo_root, modality)
+
+
 def run_cmd(cmd: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
     logging.info("Running: %s", " ".join(cmd))
     merged_env = os.environ.copy()
@@ -341,17 +353,15 @@ def create_venv(uv: Path, workdir: Path, python_version: str) -> Path:
     return venv_dir
 
 
-def install_packages(uv: Path, workdir: Path, modality: Modality) -> None:
-    if not (workdir / "pyproject.toml").is_file():
-        raise RuntimeError(f"No pyproject.toml found in {workdir}")
+def install_packages(uv: Path, sync_dir: Path, modality: Modality) -> None:
+    if not (sync_dir / "pyproject.toml").is_file():
+        raise RuntimeError(f"No pyproject.toml found in {sync_dir}")
 
     cmd = [str(uv), "sync"]
     if modality.install_type == "calibration":
         cmd.append("--prerelease=allow")
-        logging.info("Syncing calibration package (editable) from %s", workdir)
-    else:
-        logging.info("Syncing examples environment from %s", workdir)
-    run_cmd(cmd, cwd=workdir)
+    logging.info("Syncing Python environment from %s", sync_dir)
+    run_cmd(cmd, cwd=sync_dir)
 
 
 def setup_python_environment(
@@ -359,17 +369,20 @@ def setup_python_environment(
     repo_root: Path,
     options: InstallOptions,
     settings: InstallerSettings,
-) -> Path:
+) -> tuple[Path, Path]:
+    """Return (calibration_workdir, env_root) after optional venv setup."""
+    workdir = calibration_workdir(repo_root, plan.modality)
+    sync_dir = env_root(repo_root, plan.modality)
+
     if options.skip_env:
         logging.info("Skipping environment setup (--skip-env)")
-        return package_path(repo_root, plan.modality)
+        return workdir, sync_dir
 
-    workdir = package_path(repo_root, plan.modality)
     uv = ensure_uv(options, settings)
     ensure_python(uv, plan.python_version)
-    create_venv(uv, workdir, plan.python_version)
-    install_packages(uv, workdir, plan.modality)
-    return workdir
+    create_venv(uv, sync_dir, plan.python_version)
+    install_packages(uv, sync_dir, plan.modality)
+    return workdir, sync_dir
 
 
 def venv_executable(workdir: Path, name: str) -> Path:
@@ -384,11 +397,12 @@ def default_qualibrate_config_path() -> Path:
 
 def setup_qualibrate(
     workdir: Path,
+    env_root_dir: Path,
     settings: InstallerSettings,
     options: InstallOptions,
 ) -> bool:
     """Run qualibrate config with project-relative defaults. Returns True if configured."""
-    qualibrate = venv_executable(workdir, "qualibrate")
+    qualibrate = venv_executable(env_root_dir, "qualibrate")
     if not qualibrate.is_file():
         raise RuntimeError(f"qualibrate not found in virtual environment: {qualibrate}")
 
@@ -437,13 +451,13 @@ def build_summary_lines(
     plan: InstallPlan,
     repo_root: Path,
     workdir: Path,
+    env_root_dir: Path,
     settings: InstallerSettings,
     *,
     env_skipped: bool,
     qualibrate_configured: bool,
     telemetry_configured: bool,
 ) -> list[str]:
-    venv_dir = workdir / ".venv"
     lines = [
         "Installation complete",
         f"Modality:     {plan.modality.key} ({plan.modality.label})",
@@ -453,12 +467,12 @@ def build_summary_lines(
     ]
     if env_skipped:
         lines.append("Environment:  skipped (--skip-env)")
-    elif venv_dir.is_dir():
-        lines.append(f"Virtual env:  {venv_dir}")
-        lines.append(f"Activate:     {activation_hint(venv_dir)}")
+    elif (env_root_dir / ".venv").is_dir():
+        lines.append(f"Virtual env:  {env_root_dir / '.venv'}")
+        lines.append(f"Activate:     {activation_hint(env_root_dir / '.venv')}")
     if plan.enable_telemetry:
         if telemetry_configured:
-            lines.append(f"Telemetry:    enabled ({telemetry_config_path(workdir)})")
+            lines.append(f"Telemetry:    enabled ({telemetry_config_path(repo_root)})")
             lines.append(f"Uptrace UI:   {settings.telemetry.health_url}")
         else:
             lines.append("Telemetry:    requested but setup did not complete (see log)")
@@ -481,6 +495,7 @@ def print_summary(
     plan: InstallPlan,
     repo_root: Path,
     workdir: Path,
+    env_root_dir: Path,
     settings: InstallerSettings,
     *,
     env_skipped: bool,
@@ -491,6 +506,7 @@ def print_summary(
         plan,
         repo_root,
         workdir,
+        env_root_dir,
         settings,
         env_skipped=env_skipped,
         qualibrate_configured=qualibrate_configured,
@@ -501,10 +517,10 @@ def print_summary(
         print(f"  {line}")
     print("=" * 60)
     print()
-    if not env_skipped and (workdir / ".venv").is_dir():
-        print("Activate the virtual environment and continue with QUAM setup above.")
+    if not env_skipped and (env_root_dir / ".venv").is_dir():
+        print("Activate the virtual environment at the repository root, then run QCA or calibration scripts.")
     elif plan.enable_telemetry and telemetry_configured:
-        print("Telemetry is enabled. Run calibration nodes from the workdir to send spans to Uptrace.")
+        print("Telemetry is enabled. Scripts under the install directory will send spans to Uptrace.")
 
 
 def run_install(
@@ -514,20 +530,21 @@ def run_install(
 ) -> tuple[int, list[str]]:
     try:
         repo_root = clone_or_update(plan, options)
-        workdir = setup_python_environment(plan, repo_root, options, manifest.settings)
+        workdir, env_root_dir = setup_python_environment(plan, repo_root, options, manifest.settings)
 
         qualibrate_configured = False
         if plan.modality.qualibrate_setup and not options.skip_env and not options.skip_qualibrate:
-            qualibrate_configured = setup_qualibrate(workdir, manifest.settings, options)
+            qualibrate_configured = setup_qualibrate(workdir, env_root_dir, manifest.settings, options)
 
         telemetry_configured = False
         if plan.enable_telemetry:
-            telemetry_configured = setup_telemetry(workdir, manifest.settings, options)
+            telemetry_configured = setup_telemetry(repo_root, manifest.settings, options)
 
         summary = build_summary_lines(
             plan,
             repo_root,
             workdir,
+            env_root_dir,
             manifest.settings,
             env_skipped=options.skip_env,
             qualibrate_configured=qualibrate_configured,
@@ -538,6 +555,7 @@ def run_install(
                 plan,
                 repo_root,
                 workdir,
+                env_root_dir,
                 manifest.settings,
                 env_skipped=options.skip_env,
                 qualibrate_configured=qualibrate_configured,
