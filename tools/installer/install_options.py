@@ -37,7 +37,10 @@ def parse_args(argv: list[str] | None, manifest: Manifest) -> InstallOptions:
         choices=list(manifest.modality_order),
         help="Modality to install (interactive prompt if omitted).",
     )
-    parser.add_argument("--dest", help="Installation directory.")
+    parser.add_argument(
+        "--dest",
+        help="Install location (parent folder, or full path ending in the repo name).",
+    )
     parser.add_argument(
         "--telemetry",
         action=argparse.BooleanOptionalAction,

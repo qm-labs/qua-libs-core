@@ -17,7 +17,13 @@ from tkinter import filedialog, messagebox, ttk
 
 from config import INSTALLER_DIR, Manifest, Modality, UiTheme, load_manifest
 from install_options import InstallOptions
-from install import build_plan_from_options, run_install, setup_logging
+from install import (
+    build_plan_from_options,
+    default_install_location,
+    repo_root_from_location,
+    run_install,
+    setup_logging,
+)
 
 try:
     from PIL import Image, ImageTk
@@ -69,6 +75,9 @@ SETUP_WINDOW_WIDTH = 1000
 SETUP_WINDOW_HEIGHT = 640
 PROGRESS_WINDOW_WIDTH = 1000
 PROGRESS_WINDOW_HEIGHT = 780
+COMPLETE_WINDOW_WIDTH = 1000
+COMPLETE_WINDOW_HEIGHT = 640
+FAILURE_HEADING_COLOR = "#C0392B"
 
 
 def _configure_tk_scaling(root: tk.Misc) -> None:
@@ -314,9 +323,11 @@ class InstallerApp:
         pad = self.theme.content_padding
         self.setup_page = tk.Frame(self.content, bg=self.theme.surface, padx=pad, pady=pad)
         self.progress_page = tk.Frame(self.content, bg=self.theme.surface, padx=pad, pady=pad)
+        self.complete_page = tk.Frame(self.content, bg=self.theme.surface, padx=pad, pady=pad)
 
         self._build_setup_page(self.setup_page)
         self._build_progress_page(self.progress_page)
+        self._build_complete_page(self.complete_page)
 
         self._show_page("setup")
         self._on_modality_selected()
@@ -325,9 +336,17 @@ class InstallerApp:
 
     def _finalize_window(self) -> None:
         self._set_window_icon(self.root)
-        page = "progress" if self.progress_page.winfo_ismapped() else "setup"
+        page = (
+            "complete"
+            if self.complete_page.winfo_ismapped()
+            else "progress"
+            if self.progress_page.winfo_ismapped()
+            else "setup"
+        )
         if page == "progress":
             self._apply_window_geometry(PROGRESS_WINDOW_WIDTH, PROGRESS_WINDOW_HEIGHT)
+        elif page == "complete":
+            self._apply_window_geometry(COMPLETE_WINDOW_WIDTH, COMPLETE_WINDOW_HEIGHT)
         else:
             self._apply_window_geometry(SETUP_WINDOW_WIDTH, SETUP_WINDOW_HEIGHT)
 
@@ -386,12 +405,16 @@ class InstallerApp:
     def _show_page(self, page: str) -> None:
         self.setup_page.pack_forget()
         self.progress_page.pack_forget()
+        self.complete_page.pack_forget()
         if page == "setup":
             self.setup_page.pack(fill=tk.BOTH, expand=True)
             self._apply_window_geometry(SETUP_WINDOW_WIDTH, SETUP_WINDOW_HEIGHT)
-        else:
+        elif page == "progress":
             self.progress_page.pack(fill=tk.BOTH, expand=True)
             self._apply_window_geometry(PROGRESS_WINDOW_WIDTH, PROGRESS_WINDOW_HEIGHT)
+        else:
+            self.complete_page.pack(fill=tk.BOTH, expand=True)
+            self._apply_window_geometry(COMPLETE_WINDOW_WIDTH, COMPLETE_WINDOW_HEIGHT)
 
     def _setup_ttk(self) -> None:
         theme = self.theme
@@ -470,6 +493,14 @@ class InstallerApp:
         self._build_progress(parent)
         self._build_progress_footer(parent)
 
+    def _build_complete_page(self, parent: tk.Misc) -> None:
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_rowconfigure(1, weight=1, minsize=200)
+
+        self._build_complete_header(parent)
+        self._build_complete_summary(parent)
+        self._build_complete_footer(parent)
+
     def _build_setup_header(self, parent: tk.Misc) -> None:
         theme = self.theme
         header = tk.Frame(parent, bg=theme.surface)
@@ -489,8 +520,8 @@ class InstallerApp:
         tk.Label(
             header,
             text=(
-                "Choose a modality, installation folder, and Python version. "
-                "The installer will clone the repository, create a virtual environment, "
+                "Choose a modality, install location, and Python version. "
+                "The installer will clone the repository into that location, create a virtual environment, "
                 "and configure QUAlibrate."
             ),
             bg=theme.surface,
@@ -528,6 +559,131 @@ class InstallerApp:
             wraplength=620,
         ).pack(anchor="w", pady=(8, 0))
 
+    def _build_complete_header(self, parent: tk.Misc) -> None:
+        theme = self.theme
+        header = tk.Frame(parent, bg=theme.surface)
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 18))
+
+        self._load_logo(header)
+
+        self.complete_title_label = tk.Label(
+            header,
+            text="Installation complete",
+            bg=theme.surface,
+            fg=theme.heading,
+            font=self.fonts.get(22),
+            anchor="w",
+        )
+        self.complete_title_label.pack(anchor="w")
+
+        self.complete_subtitle_label = tk.Label(
+            header,
+            text="Your QUA Libraries environment is ready.",
+            bg=theme.surface,
+            fg=theme.muted,
+            font=self.fonts.get(10),
+            justify=tk.LEFT,
+            anchor="w",
+            wraplength=620,
+        )
+        self.complete_subtitle_label.pack(anchor="w", pady=(8, 0))
+
+    def _build_complete_summary(self, parent: tk.Misc) -> None:
+        theme = self.theme
+        summary = tk.Frame(parent, bg=theme.surface)
+        summary.grid(row=1, column=0, sticky="nsew")
+        summary.grid_columnconfigure(0, weight=1)
+        summary.grid_rowconfigure(1, weight=1, minsize=140)
+
+        ttk.Label(summary, text="Summary", style="Section.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 8))
+
+        summary_shell = tk.Frame(
+            summary,
+            bg=theme.log_bg,
+            highlightbackground=theme.divider,
+            highlightthickness=1,
+        )
+        summary_shell.grid(row=1, column=0, sticky="nsew")
+        summary_shell.grid_columnconfigure(0, weight=1)
+        summary_shell.grid_rowconfigure(0, weight=1)
+
+        self.summary_text = tk.Text(
+            summary_shell,
+            wrap="word",
+            state="disabled",
+            bg=theme.log_bg,
+            fg=theme.ink,
+            insertbackground=theme.ink,
+            relief=tk.FLAT,
+            borderwidth=0,
+            padx=10,
+            pady=10,
+            font=self.fonts.get(10),
+        )
+        self.summary_text.grid(row=0, column=0, sticky="nsew")
+        scrollbar = ttk.Scrollbar(summary_shell, command=self.summary_text.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        self.summary_text.configure(yscrollcommand=scrollbar.set)
+
+    def _build_complete_footer(self, parent: tk.Misc) -> None:
+        theme = self.theme
+        footer = tk.Frame(parent, bg=theme.surface)
+        footer.grid(row=2, column=0, sticky="ew", pady=(18, 0))
+        footer.grid_columnconfigure(0, weight=1)
+
+        tk.Frame(footer, bg=theme.divider, height=1).grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 14))
+
+        tk.Label(
+            footer,
+            text="Quantum Machines",
+            bg=theme.surface,
+            fg=theme.muted,
+            font=self.fonts.get(9),
+        ).grid(row=1, column=0, sticky="w")
+
+        actions = tk.Frame(footer, bg=theme.surface)
+        actions.grid(row=1, column=1, sticky="e")
+
+        WinPrimaryButton(
+            actions,
+            "Close",
+            theme,
+            self.fonts,
+            self._on_close,
+        ).pack(side=tk.RIGHT)
+
+    def _summary_body_lines(self, summary: list[str]) -> list[str]:
+        lines = summary[:]
+        if lines and lines[0].strip().lower() == "installation complete":
+            lines = lines[1:]
+        return lines
+
+    def _show_result_page(self, exit_code: int, summary: list[str]) -> None:
+        theme = self.theme
+        if exit_code == 0:
+            self.complete_title_label.configure(
+                text="Installation complete",
+                fg=theme.heading,
+            )
+            self.complete_subtitle_label.configure(
+                text="Your QUA Libraries environment is ready. Review the details below."
+            )
+        else:
+            self.complete_title_label.configure(
+                text="Installation failed",
+                fg=FAILURE_HEADING_COLOR,
+            )
+            self.complete_subtitle_label.configure(
+                text="Review the details below and check the log for more information."
+            )
+
+        body = self._summary_body_lines(summary)
+        self.summary_text.configure(state="normal")
+        self.summary_text.delete("1.0", "end")
+        self.summary_text.insert("1.0", "\n".join(body))
+        self.summary_text.configure(state="disabled")
+        self._show_page("complete")
+
     def _build_options(self, parent: tk.Misc) -> None:
         theme = self.theme
         options = tk.Frame(parent, bg=theme.surface)
@@ -548,20 +704,43 @@ class InstallerApp:
         self.modality_display.grid(row=0, column=1, columnspan=2, sticky="ew", pady=6)
         self.modality_display.bind("<<ComboboxSelected>>", self._on_modality_selected)
 
-        ttk.Label(options, text="Install to", style="Field.TLabel").grid(row=1, column=0, sticky="w", padx=(0, 16), pady=6)
+        ttk.Label(options, text="Install location", style="Field.TLabel").grid(
+            row=1, column=0, sticky="nw", padx=(0, 16), pady=6
+        )
+        dest_block = tk.Frame(options, bg=theme.surface)
+        dest_block.grid(row=1, column=1, columnspan=2, sticky="ew", pady=6)
+        dest_block.grid_columnconfigure(0, weight=1)
+
         self.dest_var = tk.StringVar()
-        ttk.Entry(options, textvariable=self.dest_var, style="QM.TEntry").grid(
-            row=1, column=1, sticky="ew", pady=6, padx=(0, 8)
+        dest_row = tk.Frame(dest_block, bg=theme.surface)
+        dest_row.grid(row=0, column=0, sticky="ew")
+        dest_row.grid_columnconfigure(0, weight=1)
+
+        ttk.Entry(dest_row, textvariable=self.dest_var, style="QM.TEntry").grid(
+            row=0, column=0, sticky="ew", padx=(0, 8)
         )
         self.browse_link = LinkButton(
-            options,
+            dest_row,
             "Browse",
             theme,
             self.fonts,
             self._browse_dest,
             bg=theme.surface,
         )
-        self.browse_link.grid(row=1, column=2, sticky="e", pady=6)
+        self.browse_link.grid(row=0, column=1, sticky="e")
+
+        self.dest_hint_var = tk.StringVar()
+        tk.Label(
+            dest_block,
+            textvariable=self.dest_hint_var,
+            bg=theme.surface,
+            fg=theme.muted,
+            font=self.fonts.get(9),
+            justify=tk.LEFT,
+            anchor="w",
+            wraplength=620,
+        ).grid(row=1, column=0, sticky="w", pady=(6, 0))
+        self.dest_var.trace_add("write", self._update_dest_hint)
 
         ttk.Label(options, text="Python", style="Field.TLabel").grid(row=2, column=0, sticky="w", padx=(0, 16), pady=6)
         self.python_var = tk.StringVar(value=self.settings.default_python)
@@ -700,15 +879,29 @@ class InstallerApp:
         key = display.split(" — ", 1)[0]
         return self.manifest.modalities[key]
 
+    def _resolved_repo_root(self) -> Path | None:
+        dest_raw = self.dest_var.get().strip()
+        if not dest_raw:
+            return None
+        return repo_root_from_location(self._selected_modality(), dest_raw)
+
+    def _update_dest_hint(self, *_args: object) -> None:
+        repo_root = self._resolved_repo_root()
+        if repo_root is None:
+            self.dest_hint_var.set("")
+            return
+        self.dest_hint_var.set(f"Repository will be installed to: {repo_root}")
+
     def _on_modality_selected(self, _event: object | None = None) -> None:
         modality = self._selected_modality()
-        default_dest = Path.home() / modality.default_dir_name
-        self.dest_var.set(str(default_dest))
+        self.dest_var.set(str(default_install_location(modality)))
+        self._update_dest_hint()
 
     def _browse_dest(self) -> None:
-        selected = filedialog.askdirectory(title="Choose installation directory")
+        selected = filedialog.askdirectory(title="Choose install location")
         if selected:
             self.dest_var.set(selected)
+            self._update_dest_hint()
 
     def _append_log(self, message: str) -> None:
         if self._closing:
@@ -778,16 +971,31 @@ class InstallerApp:
     def _resolve_existing_action(self, dest: Path) -> str | None:
         if not dest.exists():
             return None
-        if (dest / ".git").is_dir():
+        is_git_clone = (dest / ".git").is_dir()
+        if is_git_clone:
             choices = ["update", "reinstall", "skip", "abort"]
             default = "update"
+            dialog_title = "Existing installation"
+            heading = "Existing installation found"
+            detail = (
+                f"{dest}\n\n"
+                "This folder contains a git clone from a previous install.\n\n"
+                "What should the installer do?"
+            )
         else:
             choices = ["reinstall", "skip", "abort"]
             default = "reinstall"
+            dialog_title = "Folder already exists"
+            heading = "Folder already exists"
+            detail = (
+                f"{dest}\n\n"
+                "This path already exists on disk. It may not be a QUA Libraries install.\n\n"
+                "What should the installer do?"
+            )
 
         theme = self.theme
         dialog = tk.Toplevel(self.root)
-        dialog.title("Directory exists")
+        dialog.title(dialog_title)
         dialog.configure(bg=theme.surface)
         dialog.transient(self.root)
         dialog.grab_set()
@@ -799,7 +1007,7 @@ class InstallerApp:
 
         tk.Label(
             pad,
-            text="Existing installation found",
+            text=heading,
             bg=theme.surface,
             fg=theme.heading,
             font=self.fonts.get(14),
@@ -807,7 +1015,7 @@ class InstallerApp:
 
         tk.Label(
             pad,
-            text=f"{dest}\n\nWhat should the installer do?",
+            text=detail,
             bg=theme.surface,
             fg=theme.muted,
             font=self.fonts.get(10),
@@ -844,17 +1052,18 @@ class InstallerApp:
         modality = self._selected_modality()
         dest_raw = self.dest_var.get().strip()
         if not dest_raw:
-            messagebox.showerror("Missing path", "Choose an installation directory.")
+            messagebox.showerror("Missing path", "Choose an install location.")
             return None
 
-        dest = Path(dest_raw).expanduser().resolve()
-        existing_action = self._resolve_existing_action(dest)
+        repo_root = self._resolved_repo_root()
+        assert repo_root is not None
+        existing_action = self._resolve_existing_action(repo_root)
         if existing_action == "abort":
             return None
 
         return InstallOptions(
             modality=modality.key,
-            dest=str(dest),
+            dest=dest_raw,
             telemetry=self.telemetry_var.get(),
             existing_action=existing_action,
             python=self.python_var.get(),
@@ -911,12 +1120,7 @@ class InstallerApp:
                 if self._closing:
                     return
                 self._set_installing(False)
-                for line in summary:
-                    self._append_log(line)
-                if exit_code == 0:
-                    messagebox.showinfo("Installation complete", "\n".join(summary))
-                else:
-                    messagebox.showerror("Installation failed", "\n".join(summary))
+                self._show_result_page(exit_code, summary)
 
             if not self._closing and self.root.winfo_exists():
                 self.root.after(0, finish)

@@ -19,6 +19,44 @@ from urllib.request import urlopen
 INSTALLER_DIR = Path(__file__).resolve().parent
 INSTALLER_JSON = INSTALLER_DIR / "installer.json"
 SPEC_FILE = INSTALLER_DIR / "qua_libs_installer.spec"
+DIST_DIR = INSTALLER_DIR / "dist" / "QUA-Libraries-Installer"
+INSTALLER_EXE_NAME = "QUA-Libraries-Installer.exe"
+
+
+def stop_running_installer(dist_dir: Path) -> None:
+    """Best-effort stop of a previously built installer that locks dist files on Windows."""
+    if sys.platform != "win32":
+        return
+    exe = dist_dir / INSTALLER_EXE_NAME
+    if not exe.is_file():
+        return
+    result = subprocess.run(
+        ["taskkill", "/IM", INSTALLER_EXE_NAME, "/F"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        print(f"Stopped running {INSTALLER_EXE_NAME}")
+
+
+def prepare_dist_output(dist_dir: Path) -> None:
+    """Remove a previous PyInstaller output tree before rebuilding."""
+    if not dist_dir.exists():
+        return
+
+    if str(INSTALLER_DIR) not in sys.path:
+        sys.path.insert(0, str(INSTALLER_DIR))
+    from install import clear_install_destination
+
+    print(f"Clearing previous build at {dist_dir}...")
+    stop_running_installer(dist_dir)
+    try:
+        clear_install_destination(dist_dir)
+    except RuntimeError as exc:
+        raise RuntimeError(
+            f"Could not remove {dist_dir}. Close {INSTALLER_EXE_NAME} if it is running, "
+            "close any File Explorer windows in that folder, then retry."
+        ) from exc
 
 
 def uv_asset_name() -> str:
@@ -113,6 +151,8 @@ def main() -> int:
     print("Generating favicon assets...")
     generate_icons()
 
+    prepare_dist_output(DIST_DIR)
+
     print("Running PyInstaller...")
     subprocess.run(
         [
@@ -127,7 +167,7 @@ def main() -> int:
         check=True,
     )
 
-    output_dir = INSTALLER_DIR / "dist" / "QUA-Libraries-Installer"
+    output_dir = DIST_DIR
     print(f"\nBuild complete: {output_dir}")
     if sys.platform == "win32":
         print(f"Run: {output_dir / 'QUA-Libraries-Installer.exe'}")

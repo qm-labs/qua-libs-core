@@ -16,9 +16,11 @@ import logging
 import os
 import platform
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
+import time
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -121,10 +123,90 @@ def choose_modality(manifest: Manifest, preset: str | None) -> Modality:
         print("  Invalid choice. Try again.")
 
 
-def resolve_dest(modality: Modality, preset: str | None) -> Path:
-    default = str(Path.home() / modality.default_dir_name)
-    dest_raw = preset or prompt("Install directory", default)
-    return Path(dest_raw).expanduser().resolve()
+def _chmod_writable_and_retry(func, path: str | os.PathLike[str], exc: BaseException) -> None:
+    if not os.path.exists(path):
+        return
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
+
+
+def remove_path_robust(path: Path, *, retries: int = 3, delay: float = 0.5) -> None:
+    """Delete a directory tree, clearing read-only files (common on Windows git checkouts)."""
+    last_error: OSError | None = None
+    for attempt in range(retries):
+        try:
+            if sys.version_info >= (3, 12):
+                shutil.rmtree(path, onexc=_chmod_writable_and_retry)
+            else:
+                shutil.rmtree(path, onerror=_chmod_writable_and_retry)  # type: ignore[arg-type]
+            return
+        except OSError as exc:
+            last_error = exc
+            if attempt < retries - 1:
+                time.sleep(delay)
+    if last_error is not None:
+        raise RuntimeError(
+            f"Could not remove {path}. Close any programs using it "
+            f"(terminals, editors, or file explorers in that folder) and try again."
+        ) from last_error
+
+
+def clear_install_destination(dest: Path) -> None:
+    """Remove or move aside an existing install directory before a fresh clone."""
+    if not dest.exists():
+        return
+
+    logging.info("Removing existing directory %s", dest)
+    backup = dest.parent / f"{dest.name}.reinstall-{int(time.time())}"
+    try:
+        dest.replace(backup)
+        logging.info("Moved existing directory to %s", backup)
+        try:
+            remove_path_robust(backup)
+        except RuntimeError as exc:
+            logging.warning(
+                "Left backup at %s (could not delete: %s). You can remove it manually.",
+                backup,
+                exc,
+            )
+        return
+    except OSError:
+        logging.info("Could not move %s aside; deleting in place", dest)
+
+    remove_path_robust(dest)
+
+
+def default_install_parent() -> Path:
+    """Parent directory for a fresh install (cwd, or the folder containing a frozen exe)."""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path.cwd()
+
+
+def default_install_location(modality: Modality) -> Path:
+    return default_install_parent() / modality.default_dir_name
+
+
+def repo_root_from_location(modality: Modality, location: str | Path) -> Path:
+    """Resolve the repository root from an install location.
+
+    If *location* already ends with the modality repo folder name (e.g.
+    ``~/qua-libs-superconducting``), use it as-is. Otherwise treat *location*
+    as a parent directory and install to ``location/<repo-name>``.
+    """
+    path = Path(location).expanduser().resolve()
+    repo_name = modality.default_dir_name
+    if path.name == repo_name:
+        return path
+    return path / repo_name
+
+
+def resolve_repo_root(modality: Modality, preset: str | None) -> Path:
+    default = default_install_location(modality)
+    if preset:
+        return repo_root_from_location(modality, preset)
+    location = prompt("Install location", str(default))
+    return repo_root_from_location(modality, location)
 
 
 def resolve_python_version(options: InstallOptions, settings: InstallerSettings) -> str:
@@ -146,7 +228,7 @@ def resolve_python_version(options: InstallOptions, settings: InstallerSettings)
 
 def build_plan_from_options(manifest: Manifest, options: InstallOptions) -> InstallPlan:
     modality = choose_modality(manifest, options.modality)
-    dest = resolve_dest(modality, options.dest)
+    dest = resolve_repo_root(modality, options.dest)
 
     if options.telemetry is None:
         if options.non_interactive:
@@ -175,6 +257,26 @@ def run_git_clone(url: str, dest: Path) -> None:
     subprocess.run(["git", "clone", url, str(dest)], check=True)
 
 
+GIT_CLONE_CONFIG: dict[str, str] = {
+    "core.autocrlf": "false",
+    "core.eol": "lf",
+    "core.filemode": "false",
+    "core.safecrlf": "false",
+}
+
+
+def configure_git_clone(repo_root: Path, *, refresh_checkout: bool = False) -> None:
+    """Normalize git settings so Windows clones stay clean under WSL/Linux tooling."""
+    if not git_available() or not (repo_root / ".git").is_dir():
+        return
+
+    logging.info("Configuring git line endings and file modes at %s", repo_root)
+    for key, value in GIT_CLONE_CONFIG.items():
+        run_cmd(["git", "-C", str(repo_root), "config", key, value])
+    if refresh_checkout:
+        run_cmd(["git", "-C", str(repo_root), "reset", "--hard", "HEAD"])
+
+
 def download_github_zip(modality: Modality, dest: Path) -> None:
     logging.info("Downloading %s", modality.zip_url)
     try:
@@ -189,7 +291,7 @@ def download_github_zip(modality: Modality, dest: Path) -> None:
 
     extracted = dest.parent / top_level
     if dest.exists():
-        shutil.rmtree(dest)
+        clear_install_destination(dest)
     extracted.rename(dest)
     logging.info("Extracted archive -> %s", dest)
 
@@ -219,20 +321,22 @@ def clone_or_update(plan: InstallPlan, options: InstallOptions) -> Path:
             raise SystemExit("Installation cancelled.")
         if action == "skip":
             logging.info("Skipping clone; using existing directory %s", dest)
+            configure_git_clone(dest)
             return dest
         if action == "update":
             if not (dest / ".git").is_dir():
                 raise RuntimeError(f"{dest} exists but is not a git clone; choose reinstall or pick another path.")
             git_pull(dest)
+            configure_git_clone(dest)
             return dest
         if action == "reinstall":
-            logging.info("Removing existing directory %s", dest)
-            shutil.rmtree(dest)
+            clear_install_destination(dest)
 
     dest.parent.mkdir(parents=True, exist_ok=True)
 
     if git_available():
         run_git_clone(modality.clone_url, dest)
+        configure_git_clone(dest, refresh_checkout=True)
     else:
         logging.warning("git not found; downloading repository zip instead.")
         download_github_zip(modality, dest)
