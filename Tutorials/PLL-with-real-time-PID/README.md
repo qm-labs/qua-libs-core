@@ -63,18 +63,18 @@ Post-processing: - IQ → volts conversion - Phase unwrapping
 
 
 ## error term
- Error term is calculated using `assign(error, phi_2pi_target - phi_2pi_curr)`, while `phi_2pi_target` is the target phase and `phi_2pi_curr` is the current measured phase. 
-Note: we take into account some epsilon `eps` of error that will not be corrected for. Can be set to zero. 
+ Error term is calculated using `assign(error, phi_2pi_target - phi_2pi_curr)`, while `phi_2pi_target` is the target phase and `phi_2pi_curr` is the current measured phase.
+Note: we take into account some epsilon `eps` of error that will not be corrected for. Can be set to zero.
 
 ## error integral term
 Integral term uses exponential smoothing:
 error_integral = (1 - alpha) * error_integral + alpha * error
 
-## error derivative term 
+## error derivative term
 
 Error derivative is calculated using `assign(error_derivative, previous_error - error)`
 
-## Total calculation 
+## Total calculation
 The total calculation for the feedfback is:
 control = K_p * error + K_i * error_integral + K_d * error_derivative
 while:

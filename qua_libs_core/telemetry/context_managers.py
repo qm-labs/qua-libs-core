@@ -4,7 +4,6 @@ Context managers for manual span creation.
 
 from contextlib import contextmanager
 from typing import Optional, Dict, Any
-from opentelemetry.trace import Span
 from .config import get_tracer
 
 

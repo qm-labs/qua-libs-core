@@ -12,7 +12,7 @@ Run:
 """
 
 import functools
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 from opentelemetry import trace

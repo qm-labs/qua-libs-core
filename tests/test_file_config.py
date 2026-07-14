@@ -2,8 +2,6 @@
 Tests for project-level telemetry config loaded from .qua-libs/telemetry.toml.
 """
 
-import os
-
 import pytest
 
 from qua_libs_core.telemetry.file_config import (
@@ -46,7 +44,7 @@ def _write_config(directory, content: str) -> None:
 def test_find_config_walks_upward(tmp_path, monkeypatch):
     project = tmp_path / "qualibration_graphs" / "superconducting"
     project.mkdir(parents=True)
-    _write_config(tmp_path, '[telemetry]\nenabled = true\n')
+    _write_config(tmp_path, "[telemetry]\nenabled = true\n")
 
     monkeypatch.chdir(project)
     found = find_telemetry_config_file()
@@ -60,7 +58,7 @@ def test_find_config_returns_none_when_missing(tmp_path, monkeypatch):
 
 def test_explicit_path_via_env(tmp_path, monkeypatch):
     config_path = tmp_path / "custom.toml"
-    config_path.write_text('[telemetry]\nenabled = true\n', encoding="utf-8")
+    config_path.write_text("[telemetry]\nenabled = true\n", encoding="utf-8")
     monkeypatch.setenv("QUA_LIBS_TELEMETRY_CONFIG", str(config_path))
 
     assert find_telemetry_config_file() == config_path

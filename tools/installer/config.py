@@ -156,12 +156,8 @@ def load_manifest(
         ),
         qualibrate=QualibrateSettings(
             project=qualibrate_data.get("project", "QPU_project"),
-            storage_location=qualibrate_data.get(
-                "storage_location", "data/${#/qualibrate/project}"
-            ),
-            calibration_library_folder=qualibrate_data.get(
-                "calibration_library_folder", "calibrations"
-            ),
+            storage_location=qualibrate_data.get("storage_location", "data/${#/qualibrate/project}"),
+            calibration_library_folder=qualibrate_data.get("calibration_library_folder", "calibrations"),
             quam_state_path=qualibrate_data.get("quam_state_path", "quam_state"),
         ),
         telemetry=TelemetrySettings(

@@ -6,7 +6,6 @@ from qm.octave import *
 import os
 from qm.octave import QmOctaveConfig
 from qm.octave.octave_manager import ClockMode
-from dataclasses import dataclass
 from typing import Union
 
 
@@ -264,9 +263,9 @@ def octave_settings(qmm, config, octaves, elements_settings=None, calibration=Tr
                 elements_settings[i].down_convert_LO_source == "Internal"
                 or elements_settings[i].down_convert_LO_source == "Dmd1LO"
             ):
-                raise ValueError(f"Only down_convert_LO_source='Dmd2LO' is valid for rf_in_port=2.")
+                raise ValueError("Only down_convert_LO_source='Dmd2LO' is valid for rf_in_port=2.")
             if elements_settings[i].rf_in_port[1] == 1 and elements_settings[i].down_convert_LO_source == "Dmd2LO":
-                raise ValueError(f"down_convert_LO_source='Dmd2LO' is not valid for rf_in_port=1.")
+                raise ValueError("down_convert_LO_source='Dmd2LO' is not valid for rf_in_port=1.")
 
     # calibrate all the elements
     if calibration:

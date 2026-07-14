@@ -339,9 +339,7 @@ class InstallerApp:
         page = (
             "complete"
             if self.complete_page.winfo_ismapped()
-            else "progress"
-            if self.progress_page.winfo_ismapped()
-            else "setup"
+            else "progress" if self.progress_page.winfo_ismapped() else "setup"
         )
         if page == "progress":
             self._apply_window_geometry(PROGRESS_WINDOW_WIDTH, PROGRESS_WINDOW_HEIGHT)
@@ -690,7 +688,9 @@ class InstallerApp:
         options.grid(row=1, column=0, sticky="nsew", pady=(0, 16))
         options.grid_columnconfigure(1, weight=1)
 
-        ttk.Label(options, text="Modality", style="Field.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 16), pady=6)
+        ttk.Label(options, text="Modality", style="Field.TLabel").grid(
+            row=0, column=0, sticky="w", padx=(0, 16), pady=6
+        )
         modality_labels = {key: f"{key} — {mod.label}" for key, mod in self.manifest.modalities.items()}
         default_key = self.manifest.default_modality
         self.modality_var = tk.StringVar(value=modality_labels[default_key])
@@ -704,7 +704,9 @@ class InstallerApp:
         self.modality_display.grid(row=0, column=1, columnspan=2, sticky="ew", pady=6)
         self.modality_display.bind("<<ComboboxSelected>>", self._on_modality_selected)
 
-        ttk.Label(options, text="Install to", style="Field.TLabel").grid(row=1, column=0, sticky="w", padx=(0, 16), pady=6)
+        ttk.Label(options, text="Install to", style="Field.TLabel").grid(
+            row=1, column=0, sticky="w", padx=(0, 16), pady=6
+        )
         self.dest_var = tk.StringVar()
         ttk.Entry(options, textvariable=self.dest_var, style="QM.TEntry").grid(
             row=1, column=1, sticky="ew", pady=6, padx=(0, 8)
@@ -945,21 +947,13 @@ class InstallerApp:
             default = "update"
             dialog_title = "Existing installation"
             heading = "Existing installation found"
-            detail = (
-                f"{dest}\n\n"
-                "This folder contains an existing git clone.\n\n"
-                "What should the installer do?"
-            )
+            detail = f"{dest}\n\n" "This folder contains an existing git clone.\n\n" "What should the installer do?"
         else:
             choices = ["reinstall", "skip", "abort"]
             default = "reinstall"
             dialog_title = "Folder already exists"
             heading = "Folder already exists"
-            detail = (
-                f"{dest}\n\n"
-                "This path already exists on disk.\n\n"
-                "What should the installer do?"
-            )
+            detail = f"{dest}\n\n" "This path already exists on disk.\n\n" "What should the installer do?"
 
         theme = self.theme
         dialog = tk.Toplevel(self.root)
@@ -1010,7 +1004,9 @@ class InstallerApp:
             result["value"] = "abort"
             dialog.destroy()
 
-        WinSecondaryButton(buttons, "Cancel", theme, self.fonts, cancel, bg=theme.surface).pack(side=tk.RIGHT, padx=(12, 0))
+        WinSecondaryButton(buttons, "Cancel", theme, self.fonts, cancel, bg=theme.surface).pack(
+            side=tk.RIGHT, padx=(12, 0)
+        )
         WinPrimaryButton(buttons, "Continue", theme, self.fonts, confirm).pack(side=tk.RIGHT)
 
         dialog.wait_window()
@@ -1126,8 +1122,7 @@ def main() -> int:
 
     if not HAS_PIL:
         print(
-            "WARNING: Pillow is not installed; the QM logo may not display. "
-            "Install with: pip install pillow",
+            "WARNING: Pillow is not installed; the QM logo may not display. " "Install with: pip install pillow",
             file=sys.stderr,
         )
 

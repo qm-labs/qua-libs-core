@@ -3,7 +3,6 @@ QUA-Config supporting OPX1000 w/ LF-FEM + MW-FEM
 """
 
 import numpy as np
-import plotly.io as pio
 from qualang_tools.units import unit
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter

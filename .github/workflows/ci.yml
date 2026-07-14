@@ -1,7 +1,6 @@
 name: ci
 
-# CI: black formatting (line length 120) via uv. Ruff is available as a dev tool;
-# tutorial code is not gated in CI (QUA `import *` idiom).
+# CI runs the same hooks as local pre-commit (see .pre-commit-config.yaml).
 
 on:
   push:
@@ -14,12 +13,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  format:
-    name: black --check
+  pre-commit:
+    name: pre-commit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
         uses: astral-sh/setup-uv@v6
-      - name: Check formatting
-        run: uvx --from "black>=24.3,<25" black --check --diff .
+      - name: Install dependencies
+        run: uv sync
+      - name: Run pre-commit
+        run: uv run pre-commit run --all-files

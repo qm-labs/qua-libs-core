@@ -436,9 +436,7 @@ def ensure_uv(options: InstallOptions, settings: InstallerSettings) -> Path:
     print("\nuv was not found (needed to create the Python environment).")
     if prompt_yes_no("Download uv automatically?", default=True):
         return download_uv(settings)
-    raise RuntimeError(
-        "uv is required. Install it manually: https://docs.astral.sh/uv/getting-started/installation/"
-    )
+    raise RuntimeError("uv is required. Install it manually: https://docs.astral.sh/uv/getting-started/installation/")
 
 
 def ensure_python(uv: Path, python_version: str) -> None:

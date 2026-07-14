@@ -88,22 +88,17 @@ def test_repo_root_from_parent_directory(installer_modules, tmp_path: Path) -> N
     assert install.repo_root_from_location(modality, parent) == parent / "qua-libs-superconducting"
 
 
-def test_configure_git_clone_sets_local_config_and_refreshes_checkout(
-    installer_modules, tmp_path: Path
-) -> None:
+def test_configure_git_clone_sets_local_config_and_refreshes_checkout(installer_modules, tmp_path: Path) -> None:
     install = installer_modules["install"]
     repo_root = tmp_path / "qua-libs-superconducting"
     repo_root.mkdir()
     (repo_root / ".git").mkdir()
 
-    with patch.object(install, "git_available", return_value=True), patch.object(
-        install, "run_cmd"
-    ) as run_cmd:
+    with patch.object(install, "git_available", return_value=True), patch.object(install, "run_cmd") as run_cmd:
         install.configure_git_clone(repo_root, refresh_checkout=True)
 
     expected_config_calls = [
-        call(["git", "-C", str(repo_root), "config", key, value])
-        for key, value in install.GIT_CLONE_CONFIG.items()
+        call(["git", "-C", str(repo_root), "config", key, value]) for key, value in install.GIT_CLONE_CONFIG.items()
     ]
     assert run_cmd.call_args_list == expected_config_calls + [
         call(["git", "-C", str(repo_root), "reset", "--hard", "HEAD"])

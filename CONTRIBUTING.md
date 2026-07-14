@@ -26,14 +26,36 @@ the runtime dependencies and dev tools into `.venv`:
 uv sync
 ```
 
+### Pre-commit
+
+[pre-commit](https://pre-commit.com/) runs hygiene, formatting, and lint checks.
+CI runs the same hooks on every push and pull request, so a push will fail if
+the repo does not pass `pre-commit run --all-files` even if you never installed
+the local git hook.
+
+To catch issues before you commit, install the hook once after `uv sync`:
+
+```
+uv run pre-commit install
+```
+
+After that, `git commit` runs the hooks automatically and blocks the commit if
+anything fails (use `git commit --no-verify` only when you intend to skip checks).
+
+Run all hooks manually (e.g. before opening a PR):
+
+```
+uv run pre-commit run --all-files
+```
+
 ### Formatting — black
 
-Code is formatted with [black](https://black.readthedocs.io/) (line length 120),
-and CI enforces it:
+Code is formatted with [black](https://black.readthedocs.io/) (line length 120).
+Pre-commit and CI enforce it; you can also format by hand:
 
 ```
 uv run black .          # format in place
-uv run black --check .  # check only (what CI runs)
+uv run black --check .  # check only
 ```
 
 ### Linting — ruff

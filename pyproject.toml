@@ -43,7 +43,7 @@ path = "qua_libs_core/__init__.py"
 packages = ["qua_libs_core"]
 
 [dependency-groups]
-dev = ["black>=24.3,<25", "ruff>=0.6,<1", "pytest>=8.0"]
+dev = ["black>=24.3,<25", "ruff>=0.6,<1", "pytest>=8.0", "pre-commit>=4.0"]
 
 [tool.pytest.ini_options]
 # Tests live outside the `telemetry` package so they are not shipped in the wheel.

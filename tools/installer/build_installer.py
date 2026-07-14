@@ -7,7 +7,6 @@ import argparse
 import io
 import json
 import platform
-import shutil
 import subprocess
 import sys
 import tarfile

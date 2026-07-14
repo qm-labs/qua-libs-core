@@ -5,9 +5,7 @@ down-converters and calibration
 
 from qm import QuantumMachinesManager
 from qm.octave import *
-from qm.octave.octave_manager import ClockMode
 from qm.qua import *
-import os
 import time
 import matplotlib.pyplot as plt
 from qualang_tools.units import unit

@@ -4,7 +4,7 @@ Decorators for automatic function instrumentation.
 
 import functools
 from typing import Callable, Any, Optional, Dict
-from opentelemetry.trace import Status, StatusCode
+from opentelemetry.trace import StatusCode
 from .config import get_tracer
 from .utils import record_exception, set_span_status
 
