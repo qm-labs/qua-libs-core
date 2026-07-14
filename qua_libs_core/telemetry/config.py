@@ -30,7 +30,7 @@ class TelemetryConfig:
 
         Args:
             dsn: Uptrace DSN (defaults to UPTRACE_DSN env var)
-            service_name: Service name (defaults to UPTRACE_SERVICE_NAME env var or "qm-service")
+            service_name: Service name (defaults to UPTRACE_SERVICE_NAME env var or "qua-libs")
             service_version: Service version (defaults to UPTRACE_SERVICE_VERSION env var or "1.0.0")
             deployment_environment: Deployment environment (defaults to UPTRACE_ENV env var or "production")
             enabled: Whether telemetry is enabled (defaults to UPTRACE_ENABLED env var or False)
@@ -38,19 +38,15 @@ class TelemetryConfig:
         """
         self.dsn = dsn or os.getenv("UPTRACE_DSN")
         self.resource_attributes = resource_attributes or {}
-        self.service_name = service_name or os.getenv("UPTRACE_SERVICE_NAME", "qm-service")
+        self.service_name = service_name or os.getenv("UPTRACE_SERVICE_NAME", "qua-libs")
         self.service_version = service_version or os.getenv("UPTRACE_SERVICE_VERSION", "1.0.0")
         self.deployment_environment = deployment_environment or os.getenv("UPTRACE_ENV", "production")
 
-        # Whether telemetry is enabled. OFF by default: telemetry is strictly
-        # opt-in, so an unconfigured install never attempts to send anything.
-        # Enable with UPTRACE_ENABLED=true (or pass enabled=True explicitly).
+        # Off by default. Enable via .qua-libs/telemetry.toml, UPTRACE_ENABLED=true, or enabled=True.
         enabled_str = os.getenv("UPTRACE_ENABLED", "false").lower()
         self.enabled = enabled if enabled is not None else (enabled_str in ("true", "1", "yes"))
 
-        # NOTE: the "enabled but no DSN" case is handled in init_telemetry (warn and
-        # stay disabled) rather than raising here. PROJECT_CONFIG is built at import
-        # time, so raising in __init__ would crash `import telemetry`.
+        # Note: Enabled-but-no-DSN is handled in init_telemetry; do not raise in __init__.
 
 
 # Global state
@@ -66,7 +62,8 @@ def init_telemetry(config: Optional[TelemetryConfig] = None) -> None:
     Subsequent calls are safe and will be ignored.
 
     Args:
-        config: TelemetryConfig instance. If None, creates one from environment variables.
+        config: TelemetryConfig instance. If None, loads from .qua-libs/telemetry.toml,
+            environment variables, and built-in defaults via load_project_config().
     """
     global _telemetry_initialized, _tracer
 
@@ -74,12 +71,15 @@ def init_telemetry(config: Optional[TelemetryConfig] = None) -> None:
         return
 
     if config is None:
-        config = TelemetryConfig()
+        from .project_config import load_project_config
+
+        config = load_project_config()
 
     if not config.enabled:
         logger.info(
             "Telemetry is disabled (off by default). "
-            "Set UPTRACE_ENABLED=true or add .qua-libs/telemetry.toml to enable."
+            "Set enabled=true in .qua-libs/telemetry.toml, UPTRACE_ENABLED=true, "
+            "or pass TelemetryConfig(enabled=True, dsn=...) to enable."
         )
         _telemetry_initialized = True
         return
@@ -133,6 +133,6 @@ def get_tracer(name: Optional[str] = None, version: Optional[str] = None):
         return trace.NoOpTracer()
 
     if name or version:
-        return trace.get_tracer(name or "qm-service", version or "1.0.0")
+        return trace.get_tracer(name or "qua-libs", version or "1.0.0")
 
     return _tracer

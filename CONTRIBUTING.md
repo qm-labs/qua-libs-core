@@ -48,7 +48,5 @@ The QUA `from qm.qua import *` idiom and single-letter physics names (`I`, `Q`,
 
 ## License & CLA
 
-Contributions are subject to this project's license and a Contributor License
-Agreement. The exact terms for the split repositories are still being finalized;
-until then, please reach out at <info@quantum-machines.co> with any licensing
-questions.
+Contributions are subject to this project's license and Contributor License
+Agreement. Contact <info@quantum-machines.co> with licensing questions.

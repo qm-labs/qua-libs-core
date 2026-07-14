@@ -1,9 +1,7 @@
 name: ci
 
-# Baseline CI: black formatting gate (mirrors the original qua-libs check),
-# adapted to uv. Self-contained; this repo no longer builds a package. ruff is
-# available as a dev tool (config in pyproject.toml) but, as in the modality
-# repos, the tutorial code is not gated (it uses the QUA `import *` idiom).
+# CI: black formatting (line length 120) via uv. Ruff is available as a dev tool;
+# tutorial code is not gated in CI (QUA `import *` idiom).
 
 on:
   push:

@@ -127,11 +127,11 @@ def _instrument_with_disabled_uptrace(node, **kwargs):
 
 
 # ---------------------------------------------------------------------------
-# 1. Backward compatibility — basic usage works unchanged
+# 1. Basic usage
 # ---------------------------------------------------------------------------
 
 
-class TestBackwardCompatibility:
+class TestBasicUsage:
     def test_basic_instrumentation_runs_all_standard_functions(self, node):
         """instrument_calibration_node(node) should work with zero extra args,
         exactly as existing _common.py files use it."""

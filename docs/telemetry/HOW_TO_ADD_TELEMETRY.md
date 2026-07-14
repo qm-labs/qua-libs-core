@@ -19,8 +19,8 @@ parameters were used, and whether it succeeded or failed. When enabled, the data
 
 ## Prerequisites
 
-- The `telemetry` package is available — it ships with `qua-libs-core`, which the calibration
-  repos depend on. Nothing to copy or vendor; it imports like any other dependency.
+- The `qua_libs_core.telemetry` package ships with `qua-libs-core`, which the calibration
+  repos depend on. Nothing to copy or vendor.
 
 ---
 
@@ -103,9 +103,9 @@ Telemetry is off by default. Choose **one** of the following.
 
 ### Option A — Project config file (recommended)
 
-Create `.qua-libs/telemetry.toml` in your calibration project directory (the same
-folder where you run `setup-qualibrate-config`). The qua-libs installer writes
-this file when you opt in to telemetry.
+Create `.qua-libs/telemetry.toml` at the **repository root** (e.g.
+`<install>/.qua-libs/telemetry.toml`). The QUA Libraries installer writes this file
+when you opt in to telemetry. See [CONFIGURATION.md](CONFIGURATION.md).
 
 ```toml
 [telemetry]
@@ -115,9 +115,8 @@ service_name = "your-system-name"
 deployment_environment = "local"
 ```
 
-All calibration files pick up the change automatically — no environment variables
-and no edits inside the installed package. Environment variables still override
-the file if you need a temporary change.
+All calibration files under the repo pick up the change automatically. Environment
+variables still override the file for temporary changes.
 
 ### Option B — Environment variables (no files)
 
@@ -143,6 +142,7 @@ When telemetry is on, the following calibration steps are automatically wrapped 
 
 | Function | What is recorded |
 |---|---|
+| `custom_param` | node name, operation, num_shots |
 | `create_qua_program` | node name, operation, num_shots |
 | `simulate_qua_program` | node name |
 | `execute_qua_program` | node name, num_shots, timeout |
@@ -158,7 +158,7 @@ When telemetry is on, the following calibration steps are automatically wrapped 
 
 - [ ] Added `from qua_libs_core.telemetry import instrument_calibration_node` at the top
 - [ ] Added `instrument_calibration_node(node)` right after node creation
-- [ ] To see data: add `.qua-libs/telemetry.toml` (or set `UPTRACE_ENABLED=true` and `UPTRACE_DSN=...`)
+- [ ] To see data: ensure `.qua-libs/telemetry.toml` has `enabled = true` (or set env vars) and Uptrace is running
 - [ ] Ran the file and checked Uptrace for spans
 
 ---

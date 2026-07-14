@@ -1,17 +1,10 @@
-# qua-libs-core is the entry-point repo for the modality-split qua-libs: it holds
-# the generic, modality-agnostic QUA tutorials and is the landing page for the
-# per-modality repos. It also ships the importable `qua_libs_core` package, whose
-# `qua_libs_core.telemetry` subpackage is shared OpenTelemetry + Uptrace
-# instrumentation consumed by the per-modality repos.
-#
-# Runtime dependencies are derived from the imports the Tutorials actually use,
-# plus the shared `telemetry` package's OpenTelemetry/Uptrace stack. Telemetry is
-# off by default at runtime, so the libraries being installed never sends data.
+# qua-libs-core: generic QUA tutorials, shared tooling, and the `qua_libs_core`
+# package (including `qua_libs_core.telemetry` for modality repositories).
 
 [project]
 name = "qua-libs-core"
 dynamic = ["version"]
-description = "Generic QUA tutorials and landing page for the modality-split qua-libs"
+description = "Generic QUA tutorials and shared libraries for modality-specific qua-libs repos"
 license = { file = "LICENSE" }
 authors = [{ name = "Quantum Machines", email = "info@quantum-machines.co" }]
 requires-python = ">=3.10,<3.13"

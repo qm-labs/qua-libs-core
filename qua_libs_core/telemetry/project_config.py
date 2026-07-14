@@ -1,15 +1,11 @@
 """
 Project-wide telemetry configuration.
 
-Telemetry is OFF by default. To turn it on, choose one of:
-  - ``.qua-libs/telemetry.toml`` in your project (recommended for installers):
-    set ``enabled = true`` and ``dsn = "..."`` under ``[telemetry]``.
-  - Environment variables: ``UPTRACE_ENABLED=true`` and ``UPTRACE_DSN=<your DSN>``.
-  - This module's defaults below (or edit them in a fork).
+Telemetry is off by default. Enable it with ``.qua-libs/telemetry.toml`` or
+environment variables (``UPTRACE_ENABLED``, ``UPTRACE_DSN``, …).
 
-Resolution order: env vars override the TOML file; the TOML file overrides the
-defaults below. No DSN is shipped by default, so an unconfigured install never
-sends telemetry.
+Resolution order per setting: environment variables, then TOML, then the defaults
+below.
 """
 
 from pathlib import Path
@@ -27,12 +23,11 @@ _PROJECT_DEFAULTS = {
 
 
 def load_project_config(start: Optional[Path] = None) -> TelemetryConfig:
-    """Load project telemetry settings from defaults, TOML file, and env vars."""
+    """Load telemetry settings from defaults, TOML, and environment variables."""
     return build_project_config(
         defaults=_PROJECT_DEFAULTS,
         file_values=load_telemetry_file_config(start),
     )
 
 
-# Import-time snapshot for backwards compatibility; prefer load_project_config() at use time.
 PROJECT_CONFIG = load_project_config()

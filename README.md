@@ -21,19 +21,29 @@ It includes:
 
 ## Installing
 
-`qua-libs-core` is published on PyPI — like `qm-qua` and `qualang-tools`:
+Install `qua-libs-core` from PyPI:
 
 ```bash
 pip install qua-libs-core
 ```
-
-That gives you the importable `qua_libs_core` package, including the shared `qua_libs_core.telemetry` instrumentation used across the qua-libs repositories (telemetry is **off by default**).
-
-If you also want the **tutorials**, clone this repository instead of (or in addition to) installing the package:
+That gives you the importable `qua_libs_core` package, including `qua_libs_core.telemetry` used across the qua-libs repositories
+Or clone this repository for tutorials and the installer in addition to telemetry:
 
 ```bash
 git clone https://github.com/qua-platform/qua-libs-core
+cd qua-libs-core
+uv sync
 ```
+
+Documentation for telemetry is seen in
+[`qua_libs_core.telemetry`](docs/telemetry/README.md).
+
+### QUA Libraries installer
+
+For a batteries-included modality setup (clone, virtualenv, QUAlibrate, optional
+local Uptrace), use [`tools/installer/`](tools/installer/README.md).
+See [telemetry installer docs](docs/telemetry/INSTALLER.md) for Docker and config
+file behavior.
 
 ## QUA libraries by platform
 

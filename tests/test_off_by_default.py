@@ -73,3 +73,25 @@ def test_public_span_api_is_inert_when_disabled():
     with trace_span("inert_operation") as span:
         assert span.is_recording() is False
         span.set_attribute("k", "v")  # harmless no-op, must not raise
+
+
+def test_init_telemetry_reads_project_toml(tmp_path, monkeypatch, configure_spy):
+    config_dir = tmp_path / ".qua-libs"
+    config_dir.mkdir()
+    (config_dir / "telemetry.toml").write_text(
+        "\n".join(
+            [
+                "[telemetry]",
+                "enabled = true",
+                'dsn = "http://project1_secret@localhost:14318?grpc=14317"',
+                'service_name = "qua-libs"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    telemetry.init_telemetry()
+
+    assert len(configure_spy) == 1
+    assert configure_spy[0][1]["dsn"] == "http://project1_secret@localhost:14318?grpc=14317"

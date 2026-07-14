@@ -1,30 +1,62 @@
 # Telemetry Module
 
-A flexible and scalable telemetry module for OpenTelemetry + Uptrace integration.
+A flexible telemetry module for OpenTelemetry + Uptrace integration in QUA Libraries.
 
 ## Features
 
-
-- **Easy initialization**: One-time setup with environment variable support
+- **Easy initialization**: One-time setup via `.qua-libs/telemetry.toml`, environment variables, or explicit config
 - **Decorators**: Automatic function instrumentation
 - **Context managers**: Manual span creation with clean syntax
+- **Calibration nodes**: `instrument_calibration_node()` for QualibrationNode workflows
 - **Utilities**: Helper functions for common telemetry operations
-- **Configurable**: Enable/disable via environment variables
+- **Safe by default**: Off until explicitly enabled; misconfiguration never crashes your run
 
 ## Enabling telemetry
 
-Telemetry is **off by default**, and the standard destination is a **self-hosted local
-Uptrace** — your trace data stays on your own machine. Turning it on is two steps:
+Telemetry is **off by default**. The standard destination is a **self-hosted local
+Uptrace** — trace data stays on your machine.
 
-**1. Stand up a local Uptrace** — one command (full details in [SELF_HOSTING.md](SELF_HOSTING.md)):
+### 1. Stand up a local Uptrace
+
+One command (full details in [SELF_HOSTING.md](SELF_HOSTING.md)):
 
 ```bash
-# from docs/telemetry/self-hosting/
+# Linux / macOS — from docs/telemetry/self-hosting/ or tools/installer/telemetry-self-host/
 bash setup_uptrace_local.sh
 ```
 
-**2. Enable telemetry** with **two** environment variables — a switch and the local DSN the
-script prints:
+```powershell
+# Windows (PowerShell)
+powershell -ExecutionPolicy Bypass -File setup_uptrace_local.ps1
+```
+
+Open the UI at **http://localhost:14318** (login `admin@example.com` / `admin`).
+
+The QUA Libraries installer can run this step for you when you opt in to telemetry.
+See [INSTALLER.md](INSTALLER.md).
+
+### 2. Enable span export
+
+Choose **one** of the following.
+
+**Option A — Project config file (recommended)**
+
+Create `<your-install>/.qua-libs/telemetry.toml` at the repository root. The
+installer writes this file when you enable telemetry:
+
+```toml
+[telemetry]
+enabled = true
+dsn = "http://project1_secret@localhost:14318?grpc=14317"
+service_name = "qua-libs"
+deployment_environment = "local"
+```
+
+All instrumented scripts and calibration files under the repo pick this up
+automatically. See [CONFIGURATION.md](CONFIGURATION.md) for all settings and
+precedence rules.
+
+**Option B — Environment variables**
 
 ```bash
 # Linux / macOS
@@ -38,41 +70,49 @@ $env:UPTRACE_ENABLED = "true"
 $env:UPTRACE_DSN     = "http://project1_secret@localhost:14318?grpc=14317"
 ```
 
-With both set, instrumented code (see [Quick Start](#quick-start) below) sends its spans to
-your local Uptrace.
-
-- **Both are required.** `UPTRACE_ENABLED=true` *without* a `UPTRACE_DSN` stays disabled (it
-  warns and does nothing) — there's nowhere to send to.
-- **Using Uptrace Cloud instead?** Point `UPTRACE_DSN` at your cloud DSN — that's the only
-  difference, no code change. Self-hosting is the default/recommended path.
-- Leave either one unset to keep telemetry off (the default).
+- **Both `UPTRACE_ENABLED` and `UPTRACE_DSN` are required** when using env vars.
+  `UPTRACE_ENABLED=true` without a DSN stays disabled (warns, does not send).
+- **Uptrace Cloud:** point `UPTRACE_DSN` at your cloud DSN — same code, different value.
+- Leave both unset (and `enabled = false` in TOML) to keep telemetry off.
 
 ## Quick Start
 
-### 1. Initialize Telemetry
+### 1. Initialize telemetry
 
-Initialize once at application startup (e.g., in your main file):
+Call once at application startup (e.g. in your main script):
 
 ```python
 from qua_libs_core.telemetry import init_telemetry, TelemetryConfig
 
-# Option 1: Use environment variables
+# Option 1: Load from .qua-libs/telemetry.toml and environment variables
 init_telemetry()
 
-# Option 2: Configure explicitly
+# Option 2: Configure explicitly in code
 init_telemetry(
     TelemetryConfig(
+        enabled=True,
         dsn="http://project1_secret@localhost:14318?grpc=14317",
         service_name="my-service",
         service_version="1.0.0",
-        deployment_environment="production",
+        deployment_environment="local",
     )
 )
 ```
 
-### 2. Use in Your Code
+### 2. Calibration nodes
 
-#### Option A: Decorator (Automatic Instrumentation)
+Add two lines to each calibration file (see [HOW_TO_ADD_TELEMETRY.md](HOW_TO_ADD_TELEMETRY.md)):
+
+```python
+from qua_libs_core.telemetry import instrument_calibration_node
+
+node = QualibrationNode[Parameters, Quam](name="my_node", ...)
+instrument_calibration_node(node)  # before @node.run_action definitions
+```
+
+### 3. Use in your code
+
+#### Option A: Decorator (automatic instrumentation)
 
 ```python
 from qua_libs_core.telemetry import trace_function
@@ -87,14 +127,13 @@ def calculate(a, b):
     return a * b
 ```
 
-#### Option B: Context Manager (Manual Spans)
+#### Option B: Context manager (manual spans)
 
 ```python
 from qua_libs_core.telemetry import trace_span, set_span_attribute, add_span_event
 
 # Simple span
 with trace_span("my_operation"):
-    # Your code here
     result = do_something()
 
 # Span with initial attributes
@@ -108,10 +147,9 @@ with trace_span_with_attributes("simulation") as span:
     set_span_attribute(span, "duration", 100)
     set_span_attribute(span, "iterations", 50)
     add_span_event(span, "checkpoint_reached", {"checkpoint": 1})
-    # Your code here
 ```
 
-#### Option C: Error Handling
+#### Option C: Error handling
 
 ```python
 from qua_libs_core.telemetry import trace_span, record_exception, set_span_status
@@ -127,33 +165,38 @@ with trace_span("risky_operation") as span:
         raise
 ```
 
-## Environment Variables
+## Environment variables
 
-You can configure telemetry via environment variables:
+| Variable | Purpose |
+|----------|---------|
+| `UPTRACE_DSN` | Uptrace DSN (required when enabled) |
+| `UPTRACE_ENABLED` | `true` / `false` — enable or disable sending spans |
+| `UPTRACE_SERVICE_NAME` | Service name (default `qua-libs`) |
+| `UPTRACE_SERVICE_VERSION` | Service version (default `1.0.0`) |
+| `UPTRACE_ENV` | Deployment environment (default `production`) |
+| `QUA_LIBS_TELEMETRY_CONFIG` | Explicit path to a `telemetry.toml` file |
 
-- `UPTRACE_DSN`: Your Uptrace DSN (required if telemetry enabled)
-- `UPTRACE_SERVICE_NAME`: Service name (default: "qm-service")
-- `UPTRACE_SERVICE_VERSION`: Service version (default: "1.0.0")
-- `UPTRACE_ENV`: Deployment environment (default: "production")
-- `UPTRACE_ENABLED`: Enable/disable telemetry (default: "false" — telemetry is **off by default**)
+Environment variables override `.qua-libs/telemetry.toml` for the same setting.
 
-Example:
 ### Bash
+
 ```bash
 export UPTRACE_DSN="http://project1_secret@localhost:14318?grpc=14317"
 export UPTRACE_SERVICE_NAME="my-service"
 export UPTRACE_ENABLED="true"
 ```
 
-### Powershell
-```
+### PowerShell
+
+```powershell
 $env:UPTRACE_DSN = "http://project1_secret@localhost:14318?grpc=14317"
 $env:UPTRACE_SERVICE_NAME = "my-service"
 $env:UPTRACE_ENABLED = "true"
 ```
-## Usage Examples
 
-### Example 1: Instrumenting a Function
+## Usage examples
+
+### Example 1: Instrumenting a function
 
 ```python
 # file: data_processor.py
@@ -161,11 +204,10 @@ from qua_libs_core.telemetry import trace_function
 
 @trace_function("process_quantum_data", attributes={"module": "data_processor"})
 def process_quantum_data(data):
-    # Function is automatically traced
     return processed_data
 ```
 
-### Example 2: Nested Spans
+### Example 2: Nested spans
 
 ```python
 # file: simulation.py
@@ -173,22 +215,19 @@ from qua_libs_core.telemetry import trace_span, set_span_attribute
 
 def run_simulation(config):
     with trace_span("run_simulation", attributes={"config.id": config.id}) as span:
-        # Child span 1
         with trace_span("initialize") as init_span:
             set_span_attribute(init_span, "initialized", True)
             initialize()
 
-        # Child span 2
         with trace_span("execute") as exec_span:
             set_span_attribute(exec_span, "iterations", 100)
             execute()
 
-        # Child span 3
-        with trace_span("finalize") as final_span:
+        with trace_span("finalize"):
             finalize()
 ```
 
-### Example 3: Async Functions
+### Example 3: Async functions
 
 ```python
 # file: async_processor.py
@@ -196,84 +235,83 @@ from qua_libs_core.telemetry import trace_async_function
 
 @trace_async_function("async_process", attributes={"type": "async"})
 async def async_process(data):
-    result = await process(data)
-    return result
+    return await process(data)
 ```
 
-### Example 4: Using in Different Files
+### Example 4: Multiple files
 
 ```python
 # file: main.py
 from qua_libs_core.telemetry import init_telemetry
-init_telemetry()  # Initialize once
+init_telemetry()
 
 # file: module1.py
 from qua_libs_core.telemetry import trace_function
+
 @trace_function("module1_function")
 def my_function():
     pass
 
 # file: module2.py
 from qua_libs_core.telemetry import trace_span
+
 def another_function():
     with trace_span("module2_operation"):
         pass
 ```
 
-## API Reference
+## API reference
 
 ### Initialization
 
-- `init_telemetry(config: Optional[TelemetryConfig] = None)`: Initialize telemetry
-- `get_tracer(name: Optional[str] = None, version: Optional[str] = None)`: Get tracer instance
+- `init_telemetry(config=None)` — initialize telemetry (reads TOML when `config` is omitted)
+- `get_tracer(name=None, version=None)` — get tracer instance
+- `load_project_config()` — load settings from TOML, env vars, and defaults
+- `instrument_calibration_node(node, ...)` — auto-instrument QualibrationNode steps
 
 ### Decorators
 
-- `trace_function(span_name, attributes, capture_args, capture_result)`: Decorate sync functions
-- `trace_async_function(span_name, attributes, capture_args, capture_result)`: Decorate async functions
+- `trace_function(span_name, attributes, capture_args, capture_result)`
+- `trace_async_function(span_name, attributes, capture_args, capture_result)`
 
-### Context Managers
+### Context managers
 
-- `trace_span(span_name, attributes, tracer_name, tracer_version)`: Create a span with attributes
-- `trace_span_with_attributes(span_name, tracer_name, tracer_version)`: Create a span for manual attribute setting
+- `trace_span(span_name, attributes, tracer_name, tracer_version)`
+- `trace_span_with_attributes(span_name, tracer_name, tracer_version)`
 
 ### Utilities
 
-- `set_span_attribute(span, key, value)`: Set a span attribute
-- `add_span_event(span, name, attributes)`: Add an event to a span
-- `record_exception(span, exception, attributes)`: Record an exception
-- `set_span_status(span, status_code, description)`: Set span status
+- `set_span_attribute(span, key, value)`
+- `add_span_event(span, name, attributes)`
+- `record_exception(span, exception, attributes)`
+- `set_span_status(span, status_code, description)`
+- `get_current_span()`
 
-## Best Practices
+## Best practices
 
-1. **Initialize once**: Call `init_telemetry()` once at application startup
-2. **Use meaningful names**: Use descriptive span names (e.g., "process_quantum_data" not "func1")
-3. **Set relevant attributes**: Add attributes that help with debugging and analysis
-4. **Handle errors**: Always record exceptions and set error status
-5. **Keep spans focused**: Create separate spans for distinct operations
-6. **Use decorators for functions**: Prefer decorators for automatic instrumentation
-7. **Use context managers for blocks**: Use context managers for code blocks that aren't functions
+1. **Initialize once**: Call `init_telemetry()` once at startup, or use `instrument_calibration_node(node)` for calibrations
+2. **One config file**: Keep a single `.qua-libs/telemetry.toml` at the repository root
+3. **Meaningful span names**: e.g. `process_quantum_data`, not `func1`
+4. **Relevant attributes**: Add data that helps debugging and analysis
+5. **Handle errors**: Record exceptions and set error status on failures
+6. **Focused spans**: Separate spans for distinct operations
+7. **Decorators for functions**, **context managers for inline blocks**
 
-## Enabling / Disabling Telemetry
+## Enabling / disabling telemetry
 
-Telemetry is **off by default** — an unconfigured install never attempts to send anything.
+| Goal | Action |
+|------|--------|
+| Enable sending spans | `enabled = true` in `telemetry.toml`, or `UPTRACE_ENABLED=true` + `UPTRACE_DSN` |
+| Disable sending spans | `enabled = false` in TOML, or unset / `UPTRACE_ENABLED=false` |
+| Stop Uptrace server | `stop_uptrace_local.ps1` / `.sh` — see [SELF_HOSTING.md](SELF_HOSTING.md) |
+| Start Uptrace again | `setup_uptrace_local.ps1` / `.sh`, or re-run installer with telemetry on |
 
-To enable it, set both the switch and a destination:
+If telemetry is enabled but no DSN is provided, it logs a warning and stays disabled —
+it will never crash a calibration or script run.
 
-```bash
-export UPTRACE_ENABLED="true"
-export UPTRACE_DSN="http://project1_secret@localhost:14318?grpc=14317"   # local self-hosted (default)
-```
+## See also
 
-Or in code:
-
-```python
-init_telemetry(TelemetryConfig(enabled=True, dsn="http://project1_secret@localhost:14318?grpc=14317"))
-```
-
-To keep it off, simply do nothing (the default), or set `UPTRACE_ENABLED="false"` explicitly.
-If telemetry is enabled but no DSN is provided, it logs a warning and stays disabled rather than
-crashing.
-
-For an offline / on-prem destination instead of Uptrace Cloud, see
-[SELF_HOSTING.md](SELF_HOSTING.md).
+- [CONFIGURATION.md](CONFIGURATION.md) — TOML schema and precedence
+- [INSTALLER.md](INSTALLER.md) — installer + telemetry setup
+- [HOW_TO_ADD_TELEMETRY.md](HOW_TO_ADD_TELEMETRY.md) — calibration file instrumentation
+- [SELF_HOSTING.md](SELF_HOSTING.md) — Uptrace Docker stack

@@ -1,13 +1,11 @@
 """
 Load project-level telemetry settings from ``.qua-libs/telemetry.toml``.
 
-The installer (and users) can enable telemetry without environment variables by
-creating this file in the calibration project directory. Resolution order for
-each setting:
+Create this file at the repository root:
 
-  1. Environment variable (highest — temporary override)
-  2. ``.qua-libs/telemetry.toml`` (project-level, installer-friendly)
-  3. Built-in defaults passed to :func:`build_project_config`
+  ``<install>/.qua-libs/telemetry.toml``
+
+Discovery walks upward from the current working directory.
 """
 
 from __future__ import annotations

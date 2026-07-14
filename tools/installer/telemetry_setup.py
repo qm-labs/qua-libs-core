@@ -201,9 +201,6 @@ def setup_telemetry(
     """
     Stand up local Uptrace (if needed) and write <repo>/.qua-libs/telemetry.toml.
 
-    The config lives at the repository root so scripts anywhere in the tree
-    (calibrations, Quantum-Control-Applications, etc.) pick it up without env vars.
-
     Returns True when telemetry is fully configured, False when skipped or failed.
     """
     if options.skip_telemetry_setup:

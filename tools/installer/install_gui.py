@@ -704,43 +704,20 @@ class InstallerApp:
         self.modality_display.grid(row=0, column=1, columnspan=2, sticky="ew", pady=6)
         self.modality_display.bind("<<ComboboxSelected>>", self._on_modality_selected)
 
-        ttk.Label(options, text="Install location", style="Field.TLabel").grid(
-            row=1, column=0, sticky="nw", padx=(0, 16), pady=6
-        )
-        dest_block = tk.Frame(options, bg=theme.surface)
-        dest_block.grid(row=1, column=1, columnspan=2, sticky="ew", pady=6)
-        dest_block.grid_columnconfigure(0, weight=1)
-
+        ttk.Label(options, text="Install to", style="Field.TLabel").grid(row=1, column=0, sticky="w", padx=(0, 16), pady=6)
         self.dest_var = tk.StringVar()
-        dest_row = tk.Frame(dest_block, bg=theme.surface)
-        dest_row.grid(row=0, column=0, sticky="ew")
-        dest_row.grid_columnconfigure(0, weight=1)
-
-        ttk.Entry(dest_row, textvariable=self.dest_var, style="QM.TEntry").grid(
-            row=0, column=0, sticky="ew", padx=(0, 8)
+        ttk.Entry(options, textvariable=self.dest_var, style="QM.TEntry").grid(
+            row=1, column=1, sticky="ew", pady=6, padx=(0, 8)
         )
         self.browse_link = LinkButton(
-            dest_row,
+            options,
             "Browse",
             theme,
             self.fonts,
             self._browse_dest,
             bg=theme.surface,
         )
-        self.browse_link.grid(row=0, column=1, sticky="e")
-
-        self.dest_hint_var = tk.StringVar()
-        tk.Label(
-            dest_block,
-            textvariable=self.dest_hint_var,
-            bg=theme.surface,
-            fg=theme.muted,
-            font=self.fonts.get(9),
-            justify=tk.LEFT,
-            anchor="w",
-            wraplength=620,
-        ).grid(row=1, column=0, sticky="w", pady=(6, 0))
-        self.dest_var.trace_add("write", self._update_dest_hint)
+        self.browse_link.grid(row=1, column=2, sticky="e", pady=6)
 
         ttk.Label(options, text="Python", style="Field.TLabel").grid(row=2, column=0, sticky="w", padx=(0, 16), pady=6)
         self.python_var = tk.StringVar(value=self.settings.default_python)
@@ -885,23 +862,14 @@ class InstallerApp:
             return None
         return repo_root_from_location(self._selected_modality(), dest_raw)
 
-    def _update_dest_hint(self, *_args: object) -> None:
-        repo_root = self._resolved_repo_root()
-        if repo_root is None:
-            self.dest_hint_var.set("")
-            return
-        self.dest_hint_var.set(f"Repository will be installed to: {repo_root}")
-
     def _on_modality_selected(self, _event: object | None = None) -> None:
         modality = self._selected_modality()
         self.dest_var.set(str(default_install_location(modality)))
-        self._update_dest_hint()
 
     def _browse_dest(self) -> None:
         selected = filedialog.askdirectory(title="Choose install location")
         if selected:
             self.dest_var.set(selected)
-            self._update_dest_hint()
 
     def _append_log(self, message: str) -> None:
         if self._closing:
@@ -979,7 +947,7 @@ class InstallerApp:
             heading = "Existing installation found"
             detail = (
                 f"{dest}\n\n"
-                "This folder contains a git clone from a previous install.\n\n"
+                "This folder contains an existing git clone.\n\n"
                 "What should the installer do?"
             )
         else:
@@ -989,7 +957,7 @@ class InstallerApp:
             heading = "Folder already exists"
             detail = (
                 f"{dest}\n\n"
-                "This path already exists on disk. It may not be a QUA Libraries install.\n\n"
+                "This path already exists on disk.\n\n"
                 "What should the installer do?"
             )
 
@@ -1089,23 +1057,24 @@ class InstallerApp:
             return False
         return True
 
-    def _start_install(self) -> None:
-        if self.install_thread and self.install_thread.is_alive():
-            return
+    def _abort_install_prep(self, message: str) -> None:
+        self._append_log(message)
+        self._set_installing(False)
+        self._show_page("setup")
 
+    def _continue_install(self) -> None:
         options = self._build_options_obj()
         if options is None:
+            self._abort_install_prep("Installation cancelled.")
             return
 
-        if options.telemetry and not self._confirm_docker_for_telemetry():
-            return
+        if options.telemetry:
+            self._append_log("Checking Docker...")
+            if not self._confirm_docker_for_telemetry():
+                self._abort_install_prep("Installation cancelled.")
+                return
 
-        self._show_page("progress")
-
-        self.log_text.configure(state="normal")
-        self.log_text.delete("1.0", "end")
-        self.log_text.configure(state="disabled")
-        self._set_installing(True)
+        self._append_log("Starting installation...")
 
         def worker() -> None:
             try:
@@ -1127,6 +1096,25 @@ class InstallerApp:
 
         self.install_thread = threading.Thread(target=worker, daemon=True)
         self.install_thread.start()
+
+    def _start_install(self) -> None:
+        if self.install_thread and self.install_thread.is_alive():
+            return
+
+        dest_raw = self.dest_var.get().strip()
+        if not dest_raw:
+            messagebox.showerror("Missing path", "Choose an install location.")
+            return
+
+        self._show_page("progress")
+
+        self.log_text.configure(state="normal")
+        self.log_text.delete("1.0", "end")
+        self.log_text.configure(state="disabled")
+        self._set_installing(True)
+        self._append_log("Preparing installation...")
+        self.root.update_idletasks()
+        self.root.after(0, self._continue_install)
 
 
 def main() -> int:

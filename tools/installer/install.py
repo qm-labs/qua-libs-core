@@ -266,7 +266,7 @@ GIT_CLONE_CONFIG: dict[str, str] = {
 
 
 def configure_git_clone(repo_root: Path, *, refresh_checkout: bool = False) -> None:
-    """Normalize git settings so Windows clones stay clean under WSL/Linux tooling."""
+    """Set git line-ending and filemode settings for cross-platform clones."""
     if not git_available() or not (repo_root / ".git").is_dir():
         return
 

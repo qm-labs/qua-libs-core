@@ -2,7 +2,7 @@
 Centralized telemetry instrumentation for calibration nodes.
 
 Usage:
-    from telemetry import instrument_calibration_node
+    from qua_libs_core.telemetry import instrument_calibration_node
 
     node = QualibrationNode[Parameters, Quam](name="my_node", ...)
     instrument_calibration_node(node)  # call once, before any @node.run_action defs
@@ -67,7 +67,7 @@ def instrument_calibration_node(
             effect on the first init_telemetry call per process.
 
     Advanced usage — accessing the span inside a function:
-        from telemetry import get_current_span, set_span_attribute
+        from qua_libs_core.telemetry import get_current_span, set_span_attribute
 
         @node.run_action(skip_if=node.parameters.simulate)
         def analyse_data(node):

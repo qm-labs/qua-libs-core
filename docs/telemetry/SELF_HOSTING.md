@@ -6,17 +6,18 @@ nothing leaves the site. This is the right default for QM-managed systems and fo
 or privacy-sensitive installations. (Uptrace Cloud also works — it's just a different
 `UPTRACE_DSN` value; see the note at the end.)
 
-**No code changes are needed.** The package reads its destination from `UPTRACE_DSN` (or
-`project_config.py`) and passes it straight to `uptrace.configure_opentelemetry(dsn=...)`.
-This is the condensed, package-specific version; the full vendor walkthrough (other languages,
-metrics/logs, persistence, full command reference) is the internal `uptrace_selfhost_guide.pdf`
-kept with the QM telemetry materials.
+**No code changes are needed.** Enable telemetry via `.qua-libs/telemetry.toml` or
+environment variables; the package passes the DSN to `uptrace.configure_opentelemetry`.
+See [CONFIGURATION.md](CONFIGURATION.md).
 
 ## Quick start (recommended): one command
 
-This repo bundles a ready-to-run local Uptrace, so you don't have to assemble one by
-hand. You need Docker (Docker Engine on Linux, or Docker Desktop on Windows/macOS).
-From the [`self-hosting/`](./self-hosting/) directory:
+This repo bundles a ready-to-run local Uptrace. You need Docker (Docker Engine on
+Linux, or Docker Desktop on Windows/macOS).
+
+Scripts are in `tools/installer/telemetry-self-host/` and [`self-hosting/`](./self-hosting/).
+
+From either directory:
 
 **Linux / macOS:**
 
@@ -37,9 +38,18 @@ It checks for Docker, brings up the stack (ClickHouse + PostgreSQL + Redis + Upt
 waits until it's healthy, and prints the DSN.
 
 When it finishes, open the UI at **http://localhost:14318** (login
-`admin@example.com` / `admin`). Then enable telemetry and point it at the local server
-(telemetry is off until you do this):
+`admin@example.com` / `admin`). Then enable span export:
 
+**Option A — project file (recommended):** create or edit
+`<repo>/.qua-libs/telemetry.toml`:
+
+```toml
+[telemetry]
+enabled = true
+dsn = "http://project1_secret@localhost:14318?grpc=14317"
+```
+
+**Option B — environment variables:**
 ```bash
 # Linux / macOS
 export UPTRACE_ENABLED="true"
@@ -52,7 +62,10 @@ $env:UPTRACE_ENABLED = "true"
 $env:UPTRACE_DSN = "http://project1_secret@localhost:14318?grpc=14317"
 ```
 
-Run an instrumented node, and your spans appear under the project's **Spans** tab.
+If you used the QUA Libraries installer with telemetry enabled, the TOML file is
+already written — start Uptrace and run instrumented code.
+
+Run an instrumented node or script, and spans appear under the project's **Spans** tab.
 
 ### Stopping
 
@@ -124,25 +137,28 @@ http://<your-token>@localhost:14318?grpc=14317
 
 ## 3. Point qua-libs telemetry at it
 
-No code change — enable telemetry and set the self-hosted DSN. Either via environment
-variables:
+No code change — enable span export and set the self-hosted DSN via
+[`.qua-libs/telemetry.toml`](CONFIGURATION.md) or environment variables:
+
+```toml
+[telemetry]
+enabled = true
+dsn = "http://<your-token>@localhost:14318?grpc=14317"
+```
 
 ```bash
 export UPTRACE_ENABLED="true"
 export UPTRACE_DSN="http://<your-token>@localhost:14318?grpc=14317"
 ```
 
-…or in `qua_libs_core/telemetry/project_config.py` (set `enabled=True` and
-`dsn="http://<your-token>@localhost:14318?grpc=14317"`).
-
 That DSN value is the *only* thing that differs between cloud and self-hosted.
 
 ## 4. Verify
 
 Run any instrumented node/script with telemetry enabled, then in the Uptrace UI
-(http://localhost:14318) pick the `qua-libs` project → **Spans**. Your spans should appear
-within ~10 seconds. Telemetry stays off until `UPTRACE_ENABLED=true`, so unconfigured installs
-send nothing.
+(http://localhost:14318) pick the project → **Spans**. Spans should appear within
+~10 seconds. Telemetry is off by default until `enabled = true` in TOML or
+`UPTRACE_ENABLED=true`.
 
 ## Gotchas
 

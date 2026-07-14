@@ -1,13 +1,10 @@
 """
 Telemetry module for OpenTelemetry + Uptrace integration.
 
-This module provides a flexible and scalable way to add telemetry to your project.
-It can be easily imported and used across different files.
-
 Example usage:
-    from telemetry import init_telemetry, trace_function, trace_span
+    from qua_libs_core.telemetry import init_telemetry, trace_function, trace_span
 
-    # Initialize once at application startup
+    # Initialize once at application startup (reads .qua-libs/telemetry.toml)
     init_telemetry()
 
     # Option 1: Use decorator for automatic instrumentation

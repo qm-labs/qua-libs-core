@@ -24,7 +24,7 @@ INSTALLER_EXE_NAME = "QUA-Libraries-Installer.exe"
 
 
 def stop_running_installer(dist_dir: Path) -> None:
-    """Best-effort stop of a previously built installer that locks dist files on Windows."""
+    """Best-effort stop of a running installer executable that locks dist files on Windows."""
     if sys.platform != "win32":
         return
     exe = dist_dir / INSTALLER_EXE_NAME
@@ -40,7 +40,7 @@ def stop_running_installer(dist_dir: Path) -> None:
 
 
 def prepare_dist_output(dist_dir: Path) -> None:
-    """Remove a previous PyInstaller output tree before rebuilding."""
+    """Remove an existing PyInstaller output tree before rebuilding."""
     if not dist_dir.exists():
         return
 
@@ -48,7 +48,7 @@ def prepare_dist_output(dist_dir: Path) -> None:
         sys.path.insert(0, str(INSTALLER_DIR))
     from install import clear_install_destination
 
-    print(f"Clearing previous build at {dist_dir}...")
+    print(f"Clearing existing build at {dist_dir}...")
     stop_running_installer(dist_dir)
     try:
         clear_install_destination(dist_dir)
