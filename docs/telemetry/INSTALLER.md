@@ -51,7 +51,7 @@ python install.py --modality superconducting --dest /path/to/parent --telemetry
 | `--skip-telemetry-setup` | Write `telemetry.toml` only; do not start Docker stack |
 | `--force-telemetry` | Re-run Uptrace setup even if already healthy |
 | `--skip-env` | Skip venv / `uv sync` |
-| `--existing-action` | `update`, `reinstall`, `skip`, or `abort` when install path exists |
+| `--existing-action` | `reinstall`, `skip`, or `abort` when install path exists |
 
 ## After install
 

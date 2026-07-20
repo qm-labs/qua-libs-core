@@ -48,7 +48,7 @@ def parse_args(argv: list[str] | None, manifest: Manifest) -> InstallOptions:
     )
     parser.add_argument(
         "--existing-action",
-        choices=["update", "reinstall", "skip", "abort"],
+        choices=["reinstall", "skip", "abort"],
         help="Action when the destination directory already exists.",
     )
     parser.add_argument(

@@ -1,7 +1,7 @@
 # QUA Libraries installer
 
 Graphical and CLI installer for modality repositories (superconducting, NV, quantum
-dots, AMO, trapped ions).
+dots, neutral atoms, trapped ions).
 
 ## Quick start
 
@@ -23,10 +23,14 @@ python install.py --modality superconducting --dest . --telemetry --yes
 
 ## What it does
 
-1. Clone or update the modality repository (git, or zip fallback)
+1. Clone the modality repository (git, or zip fallback)
 2. Create a Python virtual environment with `uv` and `uv sync`
 3. Run `qualibrate config` (calibration modalities)
 4. Optionally set up local Uptrace telemetry (Docker + `.qua-libs/telemetry.toml`)
+
+## Compatibility
+
+See [docs/COMPATIBILITY.md](../../docs/COMPATIBILITY.md) for the full compatibility matrix. 
 
 ## Install location
 
@@ -52,10 +56,11 @@ containing the `.exe` when using the built installer.
 
 If the target path already exists:
 
-- **Update** — `git pull` (git clones only)
 - **Reinstall** — remove and re-clone
 - **Skip** — keep files, refresh env / qualibrate / telemetry as requested
 - **Abort** — cancel
+
+To update an existing clone, follow the modality repository documentation.
 
 ## Telemetry
 
@@ -79,7 +84,7 @@ PyInstaller. Close any running `QUA-Libraries-Installer.exe` before rebuilding.
 
 | File | Purpose |
 |------|---------|
-| `installer.json` | uv version, Python versions, UI theme, telemetry DSN |
+| `installer.json` | uv version, Python versions, UI theme, telemetry DSN, current `release` display |
 | `modalities.json` | Repo URLs, workspace flags, qualibrate paths |
 
 ## Logs

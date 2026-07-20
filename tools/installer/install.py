@@ -296,18 +296,13 @@ def download_github_zip(modality: Modality, dest: Path) -> None:
     logging.info("Extracted archive -> %s", dest)
 
 
-def git_pull(dest: Path) -> None:
-    logging.info("Updating existing clone at %s", dest)
-    subprocess.run(["git", "-C", str(dest), "pull", "--ff-only"], check=True)
-
-
 def handle_existing_directory(dest: Path, options: InstallOptions) -> str:
     if options.existing_action:
         return options.existing_action
 
     print(f"\nDirectory already exists: {dest}")
     if (dest / ".git").is_dir() and git_available():
-        return prompt_choice("What should we do?", ["update", "reinstall", "skip", "abort"], "update")
+        return prompt_choice("What should we do?", ["reinstall", "skip", "abort"], "abort")
     return prompt_choice("What should we do?", ["reinstall", "skip", "abort"], "reinstall")
 
 
@@ -321,12 +316,6 @@ def clone_or_update(plan: InstallPlan, options: InstallOptions) -> Path:
             raise SystemExit("Installation cancelled.")
         if action == "skip":
             logging.info("Skipping clone; using existing directory %s", dest)
-            configure_git_clone(dest)
-            return dest
-        if action == "update":
-            if not (dest / ".git").is_dir():
-                raise RuntimeError(f"{dest} exists but is not a git clone; choose reinstall or pick another path.")
-            git_pull(dest)
             configure_git_clone(dest)
             return dest
         if action == "reinstall":
@@ -549,6 +538,37 @@ def activation_hint(venv_dir: Path) -> str:
     return f"source {venv_dir}/bin/activate"
 
 
+def _metadata_version(metadata_path: Path) -> str | None:
+    for line in metadata_path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("Version:"):
+            return line.split(":", 1)[1].strip()
+    return None
+
+
+def read_installed_qm_qua_version(env_root_dir: Path) -> str | None:
+    """Read qm-qua version from the install .venv (post-install summary)."""
+    venv = env_root_dir / ".venv"
+    if not venv.is_dir():
+        return None
+
+    patterns = (
+        "lib/python*/site-packages/qm_qua-*.dist-info/METADATA",
+        "Lib/site-packages/qm_qua-*.dist-info/METADATA",
+    )
+    for pattern in patterns:
+        for metadata_path in sorted(venv.glob(pattern)):
+            version = _metadata_version(metadata_path)
+            if version:
+                return version
+    return None
+
+
+def format_qm_qua_version_label(version: str | None) -> str:
+    if version:
+        return f"qm-qua {version}"
+    return "qm-qua (version unavailable)"
+
+
 def build_summary_lines(
     plan: InstallPlan,
     repo_root: Path,
@@ -559,6 +579,7 @@ def build_summary_lines(
     env_skipped: bool,
     qualibrate_configured: bool,
     telemetry_configured: bool,
+    qm_qua_version: str | None = None,
 ) -> list[str]:
     lines = [
         "Installation complete",
@@ -567,6 +588,8 @@ def build_summary_lines(
         f"Workdir:      {workdir}",
         f"Python:       {plan.python_version}",
     ]
+    if qm_qua_version:
+        lines.append(f"QUA SDK:      {format_qm_qua_version_label(qm_qua_version)}")
     if env_skipped:
         lines.append("Environment:  skipped (--skip-env)")
     elif (env_root_dir / ".venv").is_dir():
@@ -603,6 +626,7 @@ def print_summary(
     env_skipped: bool,
     qualibrate_configured: bool,
     telemetry_configured: bool,
+    qm_qua_version: str | None = None,
 ) -> None:
     lines = build_summary_lines(
         plan,
@@ -613,6 +637,7 @@ def print_summary(
         env_skipped=env_skipped,
         qualibrate_configured=qualibrate_configured,
         telemetry_configured=telemetry_configured,
+        qm_qua_version=qm_qua_version,
     )
     print("\n" + "=" * 60)
     for line in lines:
@@ -634,6 +659,10 @@ def run_install(
         repo_root = clone_or_update(plan, options)
         workdir, env_root_dir = setup_python_environment(plan, repo_root, options, manifest.settings)
 
+        qm_qua_version = None
+        if not options.skip_env:
+            qm_qua_version = read_installed_qm_qua_version(env_root(repo_root, plan.modality))
+
         qualibrate_configured = False
         if plan.modality.qualibrate_setup and not options.skip_env and not options.skip_qualibrate:
             qualibrate_configured = setup_qualibrate(workdir, env_root_dir, manifest.settings, options)
@@ -651,6 +680,7 @@ def run_install(
             env_skipped=options.skip_env,
             qualibrate_configured=qualibrate_configured,
             telemetry_configured=telemetry_configured,
+            qm_qua_version=qm_qua_version,
         )
         if not options.non_interactive:
             print_summary(
@@ -662,6 +692,7 @@ def run_install(
                 env_skipped=options.skip_env,
                 qualibrate_configured=qualibrate_configured,
                 telemetry_configured=telemetry_configured,
+                qm_qua_version=qm_qua_version,
             )
         return 0, summary
     except subprocess.CalledProcessError as exc:

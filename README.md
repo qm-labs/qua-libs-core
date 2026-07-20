@@ -26,13 +26,14 @@ Install `qua-libs-core` from PyPI:
 ```bash
 pip install qua-libs-core
 ```
-That gives you the importable `qua_libs_core` package, including `qua_libs_core.telemetry` used across the qua-libs repositories
+That gives you the importable `qua_libs_core` package, including `qua_libs_core.telemetry` used across the qua-libs repositories, without the QUA SDK.
+
 Or clone this repository for tutorials and the installer in addition to telemetry:
 
 ```bash
 git clone https://github.com/qua-platform/qua-libs-core
 cd qua-libs-core
-uv sync
+uv sync --extra tutorials
 ```
 
 Documentation for telemetry is seen in
@@ -54,7 +55,7 @@ Examples, use cases, and calibration protocols for specific qubit platforms live
 | [qua-libs-superconducting](https://github.com/qua-platform/qua-libs-superconducting) | Superconducting transmons |
 | [qua-libs-nv](https://github.com/qua-platform/qua-libs-nv) | NV / optically addressable spin qubits |
 | [qua-libs-quantum-dots](https://github.com/qua-platform/qua-libs-quantum-dots) | Quantum dots |
-| [qua-libs-amo](https://github.com/qua-platform/qua-libs-amo) | AMO (Rydberg, cavity locking) |
+| [qua-libs-neutral-atoms](https://github.com/qua-platform/qua-libs-neutral-atoms) | Neutral atoms (Rydberg, cavity locking) |
 | [qua-libs-trapped-ion](https://github.com/qua-platform/qua-libs-trapped-ion) | Trapped ions |
 
 ## Support and Contribution

@@ -60,6 +60,14 @@ class TelemetrySettings:
 
 
 @dataclass(frozen=True)
+class ReleaseInfo:
+    """Current tested release shown on the installer setup page (see docs/COMPATIBILITY.md)."""
+
+    qua_libs_core: str
+    qm_qua: str
+
+
+@dataclass(frozen=True)
 class InstallerSettings:
     uv_version: str
     supported_python: tuple[str, ...]
@@ -69,6 +77,7 @@ class InstallerSettings:
     ui: UiTheme
     qualibrate: QualibrateSettings
     telemetry: TelemetrySettings
+    release: ReleaseInfo | None
 
     @property
     def log_file(self) -> Path:
@@ -121,6 +130,16 @@ def _load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _load_release_info(installer_data: dict) -> ReleaseInfo | None:
+    release_data = installer_data.get("release")
+    if not release_data:
+        return None
+    return ReleaseInfo(
+        qua_libs_core=release_data["qua_libs_core"],
+        qm_qua=release_data["qm_qua"],
+    )
+
+
 def load_manifest(
     installer_config: Path = INSTALLER_CONFIG_FILE,
     modalities_config: Path = MODALITIES_FILE,
@@ -167,6 +186,7 @@ def load_manifest(
             deployment_environment=telemetry_data.get("deployment_environment", "local"),
             health_url=telemetry_data.get("health_url", "http://localhost:14318"),
         ),
+        release=_load_release_info(installer_data),
     )
 
     modality_order = tuple(modalities_data["modality_order"])

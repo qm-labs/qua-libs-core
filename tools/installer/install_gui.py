@@ -11,8 +11,8 @@ import sys
 import tempfile
 import threading
 import tkinter as tk
-import tkinter.font as tkfont
 from pathlib import Path
+import tkinter.font as tkfont
 from tkinter import filedialog, messagebox, ttk
 
 from config import INSTALLER_DIR, Manifest, Modality, UiTheme, load_manifest
@@ -732,8 +732,31 @@ class InstallerApp:
             style="QM.TCombobox",
         ).grid(row=2, column=1, sticky="w", pady=6)
 
+        release = self.settings.release
+        ttk.Label(options, text="QUA SDK", style="Field.TLabel").grid(row=3, column=0, sticky="w", padx=(0, 16), pady=6)
+        sdk_label = f"qm-qua {release.qm_qua}" if release else "See compatibility matrix"
+        ttk.Label(options, text=sdk_label, style="Field.TLabel").grid(row=3, column=1, columnspan=2, sticky="w", pady=6)
+
+        if release:
+            compat_text = (
+                f"Tested with qua-libs-core {release.qua_libs_core}. "
+                "See docs/COMPATIBILITY.md for the full compatibility matrix."
+            )
+        else:
+            compat_text = "See docs/COMPATIBILITY.md for tested package combinations."
+        tk.Label(
+            options,
+            text=compat_text,
+            bg=theme.surface,
+            fg=theme.muted,
+            font=self.fonts.get(9),
+            justify=tk.LEFT,
+            anchor="w",
+            wraplength=620,
+        ).grid(row=4, column=0, columnspan=3, sticky="w", pady=(0, 6))
+
         checks = tk.Frame(options, bg=theme.surface)
-        checks.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(10, 0))
+        checks.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(10, 0))
 
         self.telemetry_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
@@ -943,8 +966,8 @@ class InstallerApp:
             return None
         is_git_clone = (dest / ".git").is_dir()
         if is_git_clone:
-            choices = ["update", "reinstall", "skip", "abort"]
-            default = "update"
+            choices = ["reinstall", "skip", "abort"]
+            default = "abort"
             dialog_title = "Existing installation"
             heading = "Existing installation found"
             detail = f"{dest}\n\n" "This folder contains an existing git clone.\n\n" "What should the installer do?"

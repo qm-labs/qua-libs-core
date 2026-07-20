@@ -1288,14 +1288,20 @@ wheels = [
 name = "qua-libs-core"
 source = { editable = "." }
 dependencies = [
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp" },
+    { name = "opentelemetry-sdk" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+    { name = "uptrace" },
+]
+
+[package.optional-dependencies]
+tutorials = [
     { name = "matplotlib", version = "3.10.9", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "matplotlib", version = "3.11.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-exporter-otlp" },
-    { name = "opentelemetry-sdk" },
     { name = "plotly" },
     { name = "qm-qua" },
     { name = "qm-saas" },
@@ -1303,8 +1309,6 @@ dependencies = [
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "tomli", marker = "python_full_version < '3.11'" },
-    { name = "uptrace" },
 ]
 
 [package.dev-dependencies]
@@ -1317,19 +1321,20 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "matplotlib", specifier = ">=3.2.2" },
-    { name = "numpy", specifier = ">=1.18.5" },
+    { name = "matplotlib", marker = "extra == 'tutorials'", specifier = ">=3.2.2" },
+    { name = "numpy", marker = "extra == 'tutorials'", specifier = ">=1.18.5" },
     { name = "opentelemetry-api", specifier = ">=1.20.0" },
     { name = "opentelemetry-exporter-otlp", specifier = ">=1.20.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.20.0" },
-    { name = "plotly", specifier = ">=5.24.1" },
-    { name = "qm-qua", specifier = ">=1.2.0" },
-    { name = "qm-saas" },
-    { name = "qualang-tools", specifier = ">=0.19.0" },
-    { name = "scipy", specifier = ">=1.7.0" },
+    { name = "plotly", marker = "extra == 'tutorials'", specifier = ">=5.24.1" },
+    { name = "qm-qua", marker = "extra == 'tutorials'", specifier = ">=1.2.0" },
+    { name = "qm-saas", marker = "extra == 'tutorials'" },
+    { name = "qualang-tools", marker = "extra == 'tutorials'", specifier = ">=0.19.0" },
+    { name = "scipy", marker = "extra == 'tutorials'", specifier = ">=1.7.0" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.1" },
     { name = "uptrace", specifier = ">=1.20.0" },
 ]
+provides-extras = ["tutorials"]
 
 [package.metadata.requires-dev]
 dev = [

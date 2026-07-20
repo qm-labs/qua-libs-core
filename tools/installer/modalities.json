@@ -4,7 +4,7 @@
     "superconducting",
     "nv",
     "quantum-dots",
-    "amo",
+    "neutral-atoms",
     "trapped-ion"
   ],
   "modalities": {
@@ -34,9 +34,9 @@
       "qualibrate_setup": false,
       "quam_readme": null
     },
-    "amo": {
-      "label": "AMO (Rydberg, cavity locking)",
-      "repo": "qua-platform/qua-libs-amo",
+    "neutral-atoms": {
+      "label": "Neutral atoms (Rydberg, cavity locking)",
+      "repo": "qua-platform/qua-libs-neutral-atoms",
       "install_type": "examples",
       "package_dir": ".",
       "qualibrate_setup": false,
