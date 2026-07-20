@@ -71,12 +71,8 @@ def _ui_scale(root: tk.Misc) -> float:
 
 
 LOGO_DISPLAY_WIDTH = 240
-SETUP_WINDOW_WIDTH = 1000
-SETUP_WINDOW_HEIGHT = 640
-PROGRESS_WINDOW_WIDTH = 1000
-PROGRESS_WINDOW_HEIGHT = 780
-COMPLETE_WINDOW_WIDTH = 1000
-COMPLETE_WINDOW_HEIGHT = 640
+WINDOW_WIDTH = 1000
+WINDOW_HEIGHT = 780
 FAILURE_HEADING_COLOR = "#C0392B"
 
 
@@ -310,6 +306,7 @@ class InstallerApp:
         self._icon_image: tk.PhotoImage | None = None
         self._poll_after_id: str | None = None
         self._closing = False
+        self._geometry_applied = False
 
         self._setup_ttk()
         root.title("QUA Libraries Installer")
@@ -336,17 +333,9 @@ class InstallerApp:
 
     def _finalize_window(self) -> None:
         self._set_window_icon(self.root)
-        page = (
-            "complete"
-            if self.complete_page.winfo_ismapped()
-            else "progress" if self.progress_page.winfo_ismapped() else "setup"
-        )
-        if page == "progress":
-            self._apply_window_geometry(PROGRESS_WINDOW_WIDTH, PROGRESS_WINDOW_HEIGHT, center=True)
-        elif page == "complete":
-            self._apply_window_geometry(COMPLETE_WINDOW_WIDTH, COMPLETE_WINDOW_HEIGHT, center=True)
-        else:
-            self._apply_window_geometry(SETUP_WINDOW_WIDTH, SETUP_WINDOW_HEIGHT, center=True)
+        if not self._geometry_applied:
+            self._apply_window_geometry(center=True)
+            self._geometry_applied = True
 
     def _window_dimensions(self, base_width: int, base_height: int) -> tuple[int, int]:
         self.root.update_idletasks()
@@ -357,8 +346,8 @@ class InstallerApp:
         height = max(int(base_height * scale), int(screen_h * 0.68))
         return width, height
 
-    def _apply_window_geometry(self, base_width: int, base_height: int, *, center: bool = False) -> None:
-        width, height = self._window_dimensions(base_width, base_height)
+    def _apply_window_geometry(self, *, center: bool = False) -> None:
+        width, height = self._window_dimensions(WINDOW_WIDTH, WINDOW_HEIGHT)
         self.root.update_idletasks()
         screen_w = max(1, self.root.winfo_screenwidth())
         screen_h = max(1, self.root.winfo_screenheight())
@@ -368,28 +357,9 @@ class InstallerApp:
         else:
             x = self.root.winfo_x()
             y = self.root.winfo_y()
-            if x <= 0 and y <= 0:
-                x = max(0, (screen_w - width) // 2)
-                y = max(0, (screen_h - height) // 2)
-            else:
-                x = max(0, min(x, screen_w - width))
-                y = max(0, min(y, screen_h - height))
+            x = max(0, min(x, screen_w - width))
+            y = max(0, min(y, screen_h - height))
         self.root.geometry(f"{width}x{height}+{x}+{y}")
-        if sys.platform == "win32":
-            self._force_window_size_windows(width, height, x, y)
-
-    def _force_window_size_windows(self, width: int, height: int, x: int, y: int) -> None:
-        try:
-            import ctypes
-
-            hwnd = ctypes.windll.user32.GetParent(self.root.winfo_id())
-            if hwnd == 0:
-                hwnd = self.root.winfo_id()
-            SWP_NOZORDER = 0x0004
-            SWP_SHOWWINDOW = 0x0040
-            ctypes.windll.user32.SetWindowPos(hwnd, 0, x, y, width, height, SWP_NOZORDER | SWP_SHOWWINDOW)
-        except OSError:
-            pass
 
     def _set_window_icon(self, root: tk.Misc) -> None:
         ico_path = INSTALLER_DIR / "assets" / "qm_favicon.ico"
@@ -418,13 +388,10 @@ class InstallerApp:
         self.complete_page.pack_forget()
         if page == "setup":
             self.setup_page.pack(fill=tk.BOTH, expand=True)
-            self._apply_window_geometry(SETUP_WINDOW_WIDTH, SETUP_WINDOW_HEIGHT)
         elif page == "progress":
             self.progress_page.pack(fill=tk.BOTH, expand=True)
-            self._apply_window_geometry(PROGRESS_WINDOW_WIDTH, PROGRESS_WINDOW_HEIGHT)
         else:
             self.complete_page.pack(fill=tk.BOTH, expand=True)
-            self._apply_window_geometry(COMPLETE_WINDOW_WIDTH, COMPLETE_WINDOW_HEIGHT)
 
     def _setup_ttk(self) -> None:
         theme = self.theme

@@ -19,7 +19,7 @@ bin_dir = installer_dir / "bin"
 if bin_dir.is_dir() and any(bin_dir.iterdir()):
     datas.append(("bin", "bin"))
 
-hiddenimports = ["PIL._tkinter_finder"]
+hiddenimports = ["PIL._tkinter_finder", "process_utils"]
 
 a = Analysis(
     ["install_gui.py"],

@@ -29,6 +29,7 @@ from urllib.request import urlopen
 
 from config import INSTALLER_DIR, InstallerSettings, Manifest, Modality, load_manifest
 from install_options import InstallOptions, parse_args
+from process_utils import hidden_subprocess_kwargs, run_hidden_cmd
 from telemetry_setup import setup_telemetry, telemetry_config_path
 
 
@@ -254,7 +255,7 @@ def git_available() -> bool:
 
 def run_git_clone(url: str, dest: Path) -> None:
     logging.info("Cloning %s -> %s", url, dest)
-    subprocess.run(["git", "clone", url, str(dest)], check=True)
+    subprocess.run(["git", "clone", url, str(dest)], check=True, **hidden_subprocess_kwargs())
 
 
 GIT_CLONE_CONFIG: dict[str, str] = {
@@ -352,11 +353,17 @@ def calibration_workdir(repo_root: Path, modality: Modality) -> Path:
 
 
 def run_cmd(cmd: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
-    logging.info("Running: %s", " ".join(cmd))
     merged_env = os.environ.copy()
     if env:
         merged_env.update(env)
-    subprocess.run(cmd, check=True, cwd=cwd, env=merged_env)
+    logging.info("Running: %s", " ".join(cmd))
+    subprocess.run(
+        cmd,
+        check=True,
+        cwd=cwd,
+        env=merged_env,
+        **hidden_subprocess_kwargs(),
+    )
 
 
 def uv_asset_name() -> str:

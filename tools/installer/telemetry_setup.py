@@ -6,6 +6,7 @@ import logging
 import shutil
 import subprocess
 import sys
+import time
 import webbrowser
 from collections.abc import Callable
 from pathlib import Path
@@ -14,6 +15,7 @@ from urllib.request import urlopen
 
 from config import InstallerSettings
 from install_options import InstallOptions
+from process_utils import hidden_subprocess_kwargs, run_hidden_cmd
 
 TELEMETRY_CONFIG_DIR = ".qua-libs"
 TELEMETRY_CONFIG_FILE = "telemetry.toml"
@@ -64,6 +66,7 @@ def docker_daemon_ready() -> bool:
             capture_output=True,
             check=True,
             timeout=15,
+            **hidden_subprocess_kwargs(),
         )
         return True
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
@@ -102,6 +105,7 @@ def ensure_docker(
                 capture_output=True,
                 text=True,
                 check=True,
+                **hidden_subprocess_kwargs(),
             ).stdout.strip()
             logging.info("Docker ready: %s", version)
         except subprocess.CalledProcessError:
@@ -152,25 +156,47 @@ def uptrace_healthy(health_url: str) -> bool:
 
 
 def run_uptrace_setup(bundle_dir: Path) -> None:
-    if sys.platform == "win32":
-        script = bundle_dir / "setup_uptrace_local.ps1"
-        if not script.is_file():
-            raise RuntimeError(f"Missing Windows Uptrace setup script: {script}")
-        cmd = [
-            "powershell",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            str(script),
-        ]
-    else:
-        script = bundle_dir / "setup_uptrace_local.sh"
-        if not script.is_file():
-            raise RuntimeError(f"Missing Uptrace setup script: {script}")
-        cmd = ["bash", str(script)]
+    compose_dir = bundle_dir / "uptrace-local"
+    compose_file = compose_dir / "docker-compose.yml"
+    if not compose_file.is_file():
+        raise RuntimeError(f"Missing docker-compose.yml in {compose_dir}")
 
+    if sys.platform == "win32":
+        _run_uptrace_setup_windows(compose_dir, compose_file)
+        return
+
+    script = bundle_dir / "setup_uptrace_local.sh"
+    if not script.is_file():
+        raise RuntimeError(f"Missing Uptrace setup script: {script}")
     logging.info("Starting local Uptrace via %s", script.name)
-    subprocess.run(cmd, check=True, cwd=bundle_dir)
+    run_hidden_cmd(["bash", str(script)], cwd=bundle_dir)
+
+
+def _docker_compose_cmd(compose_file: Path) -> list[str]:
+    return ["docker", "compose", "-f", str(compose_file), "-p", "uptrace-local"]
+
+
+def _run_uptrace_setup_windows(compose_dir: Path, compose_file: Path) -> None:
+    logging.info("Starting local Uptrace via docker compose")
+    base = _docker_compose_cmd(compose_file)
+
+    run_hidden_cmd(
+        base + ["down", "--remove-orphans"],
+        cwd=compose_dir,
+        capture_output=True,
+        text=True,
+    )
+    run_hidden_cmd(base + ["pull"], cwd=compose_dir)
+    run_hidden_cmd(base + ["up", "-d"], cwd=compose_dir)
+
+    logging.info("Waiting for Uptrace to become ready ...")
+    for attempt in range(90):
+        if uptrace_healthy("http://localhost:14318"):
+            logging.info("Uptrace ready after ~%ss", attempt * 2)
+            return
+        time.sleep(2)
+
+    raise RuntimeError("Uptrace did not respond within ~180s.")
 
 
 def write_telemetry_config(repo_root: Path, settings: InstallerSettings) -> Path:
