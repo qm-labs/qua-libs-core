@@ -342,11 +342,11 @@ class InstallerApp:
             else "progress" if self.progress_page.winfo_ismapped() else "setup"
         )
         if page == "progress":
-            self._apply_window_geometry(PROGRESS_WINDOW_WIDTH, PROGRESS_WINDOW_HEIGHT)
+            self._apply_window_geometry(PROGRESS_WINDOW_WIDTH, PROGRESS_WINDOW_HEIGHT, center=True)
         elif page == "complete":
-            self._apply_window_geometry(COMPLETE_WINDOW_WIDTH, COMPLETE_WINDOW_HEIGHT)
+            self._apply_window_geometry(COMPLETE_WINDOW_WIDTH, COMPLETE_WINDOW_HEIGHT, center=True)
         else:
-            self._apply_window_geometry(SETUP_WINDOW_WIDTH, SETUP_WINDOW_HEIGHT)
+            self._apply_window_geometry(SETUP_WINDOW_WIDTH, SETUP_WINDOW_HEIGHT, center=True)
 
     def _window_dimensions(self, base_width: int, base_height: int) -> tuple[int, int]:
         self.root.update_idletasks()
@@ -357,11 +357,23 @@ class InstallerApp:
         height = max(int(base_height * scale), int(screen_h * 0.68))
         return width, height
 
-    def _apply_window_geometry(self, base_width: int, base_height: int) -> None:
+    def _apply_window_geometry(self, base_width: int, base_height: int, *, center: bool = False) -> None:
         width, height = self._window_dimensions(base_width, base_height)
         self.root.update_idletasks()
-        x = max(0, (self.root.winfo_screenwidth() - width) // 2)
-        y = max(0, (self.root.winfo_screenheight() - height) // 2)
+        screen_w = max(1, self.root.winfo_screenwidth())
+        screen_h = max(1, self.root.winfo_screenheight())
+        if center:
+            x = max(0, (screen_w - width) // 2)
+            y = max(0, (screen_h - height) // 2)
+        else:
+            x = self.root.winfo_x()
+            y = self.root.winfo_y()
+            if x <= 0 and y <= 0:
+                x = max(0, (screen_w - width) // 2)
+                y = max(0, (screen_h - height) // 2)
+            else:
+                x = max(0, min(x, screen_w - width))
+                y = max(0, min(y, screen_h - height))
         self.root.geometry(f"{width}x{height}+{x}+{y}")
         if sys.platform == "win32":
             self._force_window_size_windows(width, height, x, y)
