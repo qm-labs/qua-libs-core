@@ -99,6 +99,33 @@ def _icon_bitmap_path(path: Path) -> str:
     return str(path.resolve())
 
 
+def _load_ico_frame(ico_path: Path, target_size: int) -> Image.Image:
+    """Pick the embedded ICO frame closest to target_size (no upscaling)."""
+    with Image.open(ico_path) as image:
+        best: Image.Image | None = None
+        best_diff = 10**9
+        for index in range(getattr(image, "n_frames", 1)):
+            try:
+                image.seek(index)
+            except EOFError:
+                break
+            if image.size[0] > target_size:
+                continue
+            diff = target_size - image.size[0]
+            if diff < best_diff:
+                best_diff = diff
+                best = image.copy().convert("RGBA")
+        if best is None:
+            image.seek(0)
+            best = image.copy().convert("RGBA")
+        return best
+
+
+def _title_bar_icon_size(root: tk.Misc) -> int:
+    """Title bar icons are small; scale with DPI but prefer crisp native frames."""
+    return max(32, min(48, int(16 * _ui_scale(root))))
+
+
 def _default_ui_family() -> str:
     if sys.platform == "win32":
         return "Segoe UI"
@@ -363,21 +390,23 @@ class InstallerApp:
 
     def _set_window_icon(self, root: tk.Misc) -> None:
         ico_path = INSTALLER_DIR / "assets" / "qm_favicon.ico"
-        png_path = INSTALLER_DIR / "assets" / "qm_favicon_32.png"
+        if not ico_path.is_file():
+            return
         try:
-            if sys.platform == "win32" and ico_path.is_file():
+            if sys.platform == "win32":
                 bitmap_path = _icon_bitmap_path(ico_path)
                 root.iconbitmap(default=bitmap_path)
                 root.wm_iconbitmap(bitmap_path)
+                # iconbitmap alone is blurry in the title bar on HiDPI; iconphoto uses a
+                # larger embedded frame while the .exe/taskbar icon stays unchanged.
+                if HAS_PIL:
+                    frame = _load_ico_frame(ico_path, _title_bar_icon_size(root))
+                    self._icon_image = ImageTk.PhotoImage(frame)
+                    root.iconphoto(True, self._icon_image)
                 return
-            if HAS_PIL and png_path.is_file():
-                hi_res = INSTALLER_DIR / "assets" / "qm_favicon_256.png"
-                source = hi_res if hi_res.is_file() else png_path
-                image = Image.open(source).convert("RGBA")
-                self._icon_image = ImageTk.PhotoImage(image)
-                root.iconphoto(True, self._icon_image)
-            elif png_path.is_file():
-                self._icon_image = tk.PhotoImage(file=str(png_path))
+            if HAS_PIL:
+                frame = _load_ico_frame(ico_path, 32)
+                self._icon_image = ImageTk.PhotoImage(frame)
                 root.iconphoto(True, self._icon_image)
         except (tk.TclError, OSError, FileNotFoundError) as exc:
             logging.warning("Could not set window icon: %s", exc)

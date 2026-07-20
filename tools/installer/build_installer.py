@@ -120,6 +120,20 @@ def ensure_pillow() -> None:
         raise RuntimeError("Pillow is required for the installer logo. Install with: pip install pillow") from exc
 
 
+def ensure_assets() -> None:
+    missing = [
+        path
+        for path in (
+            INSTALLER_DIR / "assets" / "qm_favicon.ico",
+            INSTALLER_DIR / "assets" / "qm_logo_header.png",
+        )
+        if not path.is_file()
+    ]
+    if missing:
+        joined = ", ".join(str(path.relative_to(INSTALLER_DIR)) for path in missing)
+        raise RuntimeError(f"Missing installer assets: {joined}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build the QUA Libraries Installer executable.")
     parser.add_argument(
@@ -138,17 +152,13 @@ def main() -> int:
     args = parse_args()
     ensure_pyinstaller()
     ensure_pillow()
+    ensure_assets()
 
     installer_data = json.loads(INSTALLER_JSON.read_text(encoding="utf-8"))
     uv_version = args.uv_version or installer_data["uv_version"]
 
     if not args.skip_uv:
         download_bundled_uv(uv_version, INSTALLER_DIR / "bin")
-
-    from generate_icons import generate_icons
-
-    print("Generating favicon assets...")
-    generate_icons()
 
     prepare_dist_output(DIST_DIR)
 

@@ -77,7 +77,7 @@ cd tools\installer
 py -3.12 build_installer.py
 ```
 
-The build script downloads `uv` into `bin/`, generates favicon assets, and runs
+The build script downloads `uv` into `bin/`, bundles `assets/`, and runs
 PyInstaller. Close any running `QUA-Libraries-Installer.exe` before rebuilding.
 
 ## Configuration
