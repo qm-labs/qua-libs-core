@@ -523,21 +523,6 @@ class InstallerApp:
             anchor="w",
         ).pack(anchor="w")
 
-        tk.Label(
-            header,
-            text=(
-                "Choose a modality, install location, and Python version. "
-                "The installer will clone the repository into that location, create a virtual environment, "
-                "and configure QUAlibrate."
-            ),
-            bg=theme.surface,
-            fg=theme.muted,
-            font=self.fonts.get(10),
-            justify=tk.LEFT,
-            anchor="w",
-            wraplength=620,
-        ).pack(anchor="w", pady=(8, 0))
-
     def _build_progress_header(self, parent: tk.Misc) -> None:
         theme = self.theme
         header = tk.Frame(parent, bg=theme.surface)
@@ -584,7 +569,10 @@ class InstallerApp:
 
         self.complete_subtitle_label = tk.Label(
             header,
-            text="Your QUA Libraries environment is ready.",
+            text=(
+                "The installer cloned the modality repository, created a virtual environment, "
+                "and configured optional services. Paths and versions are listed below."
+            ),
             bg=theme.surface,
             fg=theme.muted,
             font=self.fonts.get(10),
@@ -601,7 +589,8 @@ class InstallerApp:
         summary.grid_columnconfigure(0, weight=1)
         summary.grid_rowconfigure(1, weight=1, minsize=140)
 
-        ttk.Label(summary, text="Summary", style="Section.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 8))
+        self.complete_summary_label = ttk.Label(summary, text="Summary", style="Section.TLabel")
+        self.complete_summary_label.grid(row=0, column=0, sticky="w", pady=(0, 8))
 
         summary_shell = tk.Frame(
             summary,
@@ -658,6 +647,9 @@ class InstallerApp:
             self._on_close,
         ).pack(side=tk.RIGHT)
 
+    def _read_progress_log(self) -> str:
+        return self.log_text.get("1.0", "end-1c")
+
     def _summary_body_lines(self, summary: list[str]) -> list[str]:
         lines = summary[:]
         if lines and lines[0].strip().lower() == "installation complete":
@@ -672,21 +664,38 @@ class InstallerApp:
                 fg=theme.heading,
             )
             self.complete_subtitle_label.configure(
-                text="Your QUA Libraries environment is ready. Review the details below."
+                text=(
+                    "The installer cloned the modality repository, created a virtual environment, "
+                    "and configured optional services. Paths and versions are listed below."
+                )
             )
+            self.complete_summary_label.configure(text="Summary")
+            body = "\n".join(self._summary_body_lines(summary))
         else:
             self.complete_title_label.configure(
                 text="Installation failed",
                 fg=FAILURE_HEADING_COLOR,
             )
             self.complete_subtitle_label.configure(
-                text="Review the details below and check the log for more information."
+                text="Review the installation log below. The failure reason is at the bottom."
             )
+            self.complete_summary_label.configure(text="Installation log")
+            log_body = self._read_progress_log().rstrip()
+            failure_lines = self._summary_body_lines(summary)
+            body_parts: list[str] = []
+            if log_body:
+                body_parts.append(log_body)
+            if failure_lines:
+                if body_parts:
+                    body_parts.extend(["", "---"])
+                body_parts.extend(failure_lines)
+            body = "\n".join(body_parts) if body_parts else "\n".join(failure_lines)
 
-        body = self._summary_body_lines(summary)
         self.summary_text.configure(state="normal")
         self.summary_text.delete("1.0", "end")
-        self.summary_text.insert("1.0", "\n".join(body))
+        self.summary_text.insert("1.0", body)
+        if exit_code != 0:
+            self.summary_text.see("end")
         self.summary_text.configure(state="disabled")
         self._show_page("complete")
 
@@ -742,29 +751,11 @@ class InstallerApp:
 
         release = self.settings.release
         ttk.Label(options, text="QUA SDK", style="Field.TLabel").grid(row=3, column=0, sticky="w", padx=(0, 16), pady=6)
-        sdk_label = f"qm-qua {release.qm_qua}" if release else "See compatibility matrix"
+        sdk_label = f"qm-qua {release.qm_qua}" if release else "from modality lockfile"
         ttk.Label(options, text=sdk_label, style="Field.TLabel").grid(row=3, column=1, columnspan=2, sticky="w", pady=6)
 
-        if release:
-            compat_text = (
-                f"Tested with qua-libs-core {release.qua_libs_core}. "
-                "See docs/COMPATIBILITY.md for the full compatibility matrix."
-            )
-        else:
-            compat_text = "See docs/COMPATIBILITY.md for tested package combinations."
-        tk.Label(
-            options,
-            text=compat_text,
-            bg=theme.surface,
-            fg=theme.muted,
-            font=self.fonts.get(9),
-            justify=tk.LEFT,
-            anchor="w",
-            wraplength=620,
-        ).grid(row=4, column=0, columnspan=3, sticky="w", pady=(0, 6))
-
         checks = tk.Frame(options, bg=theme.surface)
-        checks.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(10, 0))
+        checks.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(10, 0))
 
         self.telemetry_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
@@ -775,12 +766,30 @@ class InstallerApp:
         ).pack(anchor="w", pady=3)
 
         self.force_qualibrate_var = tk.BooleanVar(value=False)
+        qualibrate_row = tk.Frame(checks, bg=theme.surface)
+        qualibrate_row.pack(anchor="w", fill="x", pady=3)
         ttk.Checkbutton(
-            checks,
-            text="Reconfigure QUAlibrate if ~/.qualibrate/config.toml already exists",
+            qualibrate_row,
+            text="Reconfigure QUAlibrate",
             style="Card.TCheckbutton",
             variable=self.force_qualibrate_var,
-        ).pack(anchor="w", pady=3)
+        ).pack(anchor="w")
+        tk.Label(
+            qualibrate_row,
+            text=(
+                "QUAlibrate stores one global config at ~/.qualibrate/config.toml (not per install). "
+                "That file tells QUAlibrate which repository, calibration library, and QUAM paths to use. "
+                "If it already exists— from a previous install or manual setup—the installer leaves it "
+                "unchanged so your current calibration project is not overwritten. Check this when you "
+                "want this install to become the active QUAlibrate project."
+            ),
+            bg=theme.surface,
+            fg=theme.muted,
+            font=self.fonts.get(9),
+            justify=tk.LEFT,
+            anchor="w",
+            wraplength=580,
+        ).pack(anchor="w", padx=(26, 0), pady=(2, 0))
 
     def _build_progress(self, parent: tk.Misc) -> None:
         theme = self.theme
