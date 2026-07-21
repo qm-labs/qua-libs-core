@@ -5,6 +5,7 @@
 name = "qua-libs-core"
 dynamic = ["version"]
 description = "Generic QUA tutorials and shared libraries for modality-specific qua-libs repos"
+readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "Quantum Machines", email = "info@quantum-machines.co" }]
 requires-python = ">=3.10,<3.13"
@@ -32,12 +33,21 @@ tutorials = [
     "plotly>=5.24.1",
 ]
 
+[project.urls]
+Homepage = "https://github.com/qua-platform/qua-libs-core"
+Documentation = "https://github.com/qua-platform/qua-libs-core/tree/main/docs"
+Repository = "https://github.com/qua-platform/qua-libs-core"
+Issues = "https://github.com/qua-platform/qua-libs-core/issues"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
 path = "qua_libs_core/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+only-include = ["qua_libs_core"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["qua_libs_core"]

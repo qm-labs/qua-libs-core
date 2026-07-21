@@ -15,6 +15,8 @@
 ## Repository
 
 - [Contributing](../CONTRIBUTING.md)
+- [Release process](RELEASE.md)
+- [Compatibility matrix](COMPATIBILITY.md)
 - [Main README](../README.md)
 
 ## Sibling modality repositories

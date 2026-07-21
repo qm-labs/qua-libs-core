@@ -69,6 +69,16 @@ uv run ruff check --fix .   # apply safe fixes
 The QUA `from qm.qua import *` idiom and single-letter physics names (`I`, `Q`,
 …) are intentionally ignored; see `[tool.ruff]` in `pyproject.toml`.
 
+### Tests
+
+```
+uv run pytest
+```
+
+## Releasing
+
+See [docs/RELEASE.md](docs/RELEASE.md).
+
 ## License & CLA
 
 Contributions are subject to this project's license and Contributor License
