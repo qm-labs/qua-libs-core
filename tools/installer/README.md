@@ -30,7 +30,7 @@ python install.py --modality superconducting --dest . --telemetry --yes
 
 ## Compatibility
 
-See [docs/COMPATIBILITY.md](../../docs/COMPATIBILITY.md) for the full compatibility matrix. 
+See [docs/COMPATIBILITY.md](../../docs/COMPATIBILITY.md) for the full compatibility matrix.
 
 ## Install location
 

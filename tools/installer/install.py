@@ -29,7 +29,7 @@ from urllib.request import urlopen
 
 from config import INSTALLER_DIR, InstallerSettings, Manifest, Modality, load_manifest
 from install_options import InstallOptions, parse_args
-from process_utils import hidden_subprocess_kwargs, run_hidden_cmd
+from process_utils import hidden_subprocess_kwargs
 from telemetry_setup import setup_telemetry, telemetry_config_path
 
 
