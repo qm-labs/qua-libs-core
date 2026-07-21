@@ -18,7 +18,7 @@ Use the helper script (updates [`qua_libs_core/__init__.py`](qua_libs_core/__ini
 uv run python scripts/bump_version.py 0.1.1
 ```
 
-When changing version, also update [`docs/COMPATIBILITY.md`](COMPATIBILITY.md) and
+When changing version, also update [`CHANGELOG.md`](../CHANGELOG.md) (release notes source), [`docs/COMPATIBILITY.md`](COMPATIBILITY.md), and
 [`tools/installer/installer.json`](../tools/installer/installer.json) → `release.qm_qua` if the tested SDK changed.
 
 ## Release

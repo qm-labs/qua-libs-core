@@ -39,7 +39,7 @@ def main() -> None:
         print(f"Updated {INSTALLER_JSON.relative_to(REPO_ROOT)} release.qua_libs_core -> {version}")
     print()
     print("Next steps:")
-    print("  1. Add or update the tested row in docs/COMPATIBILITY.md")
+    print("  1. Add or update CHANGELOG.md and docs/COMPATIBILITY.md")
     print("  2. Commit, merge to main, then tag and push:")
     print(f"     git tag v{version}")
     print(f"     git push origin v{version}")

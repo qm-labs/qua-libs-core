@@ -15,6 +15,7 @@
 ## Repository
 
 - [Contributing](../CONTRIBUTING.md)
+- [Changelog](../CHANGELOG.md)
 - [Release process](RELEASE.md)
 - [Compatibility matrix](COMPATIBILITY.md)
 - [Main README](../README.md)
