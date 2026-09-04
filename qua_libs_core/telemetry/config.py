@@ -85,8 +85,7 @@ def init_telemetry(config: Optional[TelemetryConfig] = None) -> None:
         return
 
     if not config.dsn:
-        # Enabled but no destination configured. Stay disabled rather than crash —
-        # telemetry must never break a calibration run.
+        # Enabled but no destination configured. Stay disabled rather than crash.
         logger.warning(
             "Telemetry is enabled but no Uptrace DSN was provided. "
             "Set UPTRACE_DSN (or pass dsn=...). Telemetry stays disabled."

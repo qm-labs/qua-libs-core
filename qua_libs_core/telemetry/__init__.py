@@ -28,6 +28,8 @@ from .utils import (
     get_current_span,
 )
 from .calibration_node import instrument_calibration_node
+from .params import config_fingerprint, qca_param_attributes
+from .qca_script import instrument_qca_script
 from .project_config import PROJECT_CONFIG, load_project_config
 
 
@@ -45,6 +47,9 @@ __all__ = [
     "set_span_status",
     "get_current_span",
     "instrument_calibration_node",
+    "instrument_qca_script",
+    "qca_param_attributes",
+    "config_fingerprint",
     "PROJECT_CONFIG",
     "load_project_config",
 ]
