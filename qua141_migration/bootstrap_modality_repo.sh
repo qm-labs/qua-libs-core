@@ -17,10 +17,23 @@ cp "$SOURCE/templates/gitignore" "$TARGET/qua141_migration/.gitignore"
 cp "$SOURCE/templates/ci-qca-migration-gates.yml" "$TARGET/.github/workflows/qca-migration-gates.yml"
 
 if [[ -n "$MODALITY" ]]; then
-  python3 -c "from pathlib import Path; import sys; t=Path(sys.argv[1]); m=sys.argv[2];
-for rel in ["qua141_migration/validation_matrix.py","AGENTS.md","qua141_migration/AGENTS.md",".github/workflows/qca-migration-gates.yml"]:
- p=t/rel; p.write_text(p.read_text(encoding="utf-8").replace("MODALITY_PLACEHOLDER", m), encoding="utf-8")
-" "$TARGET" "$MODALITY"
+  export BOOTSTRAP_TARGET="$TARGET"
+  export BOOTSTRAP_MODALITY="$MODALITY"
+  python3 - << 'END'
+from pathlib import Path
+import os
+
+t = Path(os.environ["BOOTSTRAP_TARGET"])
+m = os.environ["BOOTSTRAP_MODALITY"]
+for rel in (
+    "qua141_migration/validation_matrix.py",
+    "AGENTS.md",
+    "qua141_migration/AGENTS.md",
+    ".github/workflows/qca-migration-gates.yml",
+):
+    path = t / rel
+    path.write_text(path.read_text(encoding="utf-8").replace("MODALITY_PLACEHOLDER", m), encoding="utf-8")
+END
 fi
 
 echo
