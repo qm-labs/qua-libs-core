@@ -27,6 +27,6 @@ jobs:
         run: uv sync --python 3.14
       - name: Run portable QCA migration gates
         env:
-          QCA_MODALITY: MODALITY_PLACEHOLDER
+          QCA_MODALITY: "MODALITY_PLACEHOLDER"
           QCA_REPO: ${{ github.workspace }}
         run: uv run pytest .qua-libs-core/qua141_migration/tests/test_qca_migration_gates.py -q
