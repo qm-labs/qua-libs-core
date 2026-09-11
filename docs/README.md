@@ -12,6 +12,12 @@
 
 - [Installer guide](../tools/installer/README.md) — GUI, CLI, build `.exe`, workspace layout
 
+## QUA 1.4.0 migration
+
+- Kit: [`../qua141_migration/README.md`](../qua141_migration/README.md)
+- Guide: [`../qua141_migration/docs/qua-1.4.0-migration.md`](../qua141_migration/docs/qua-1.4.0-migration.md)
+- Runbook: [`../qua141_migration/docs/qua-1.4.0-migration-runbook.md`](../qua141_migration/docs/qua-1.4.0-migration-runbook.md)
+
 ## Repository
 
 - [Contributing](../CONTRIBUTING.md)

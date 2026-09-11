@@ -18,7 +18,7 @@ example, ask a question, or propose something to add.
 
 ## Development
 
-This repo uses [uv](https://docs.astral.sh/uv/) and targets Python 3.10–3.12
+This repo uses [uv](https://docs.astral.sh/uv/) and targets Python 3.10–3.14
 (uv will fetch a suitable interpreter). Create a local environment — installs
 the `qua_libs_core` package, dev tools, and (with `--extra tutorials`) the QUA
 SDK and plotting stack used by `Tutorials/`:
@@ -83,3 +83,7 @@ See [docs/RELEASE.md](docs/RELEASE.md).
 
 Contributions are subject to this project's license and Contributor License
 Agreement. Contact <info@quantum-machines.co> with licensing questions.
+
+## QUA 1.4.0 migration kit
+
+Shared migrators live in [`qua141_migration/`](qua141_migration/). Run them against a modality repo with `--repo` (see that directory's AGENTS.md). Do not copy the scripts into modality repositories.
