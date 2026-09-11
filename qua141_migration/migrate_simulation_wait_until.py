@@ -142,7 +142,7 @@ def iter_targets(qca_root: Path) -> list[Path]:
     for path in sorted(qca_root.rglob("*.py")):
         if is_ignored_path(path):
             continue
-        if path.name.startswith("configuration") or path.name in {
+        if path.name.startswith("config") or path.name in {
             "macros.py",
             "qua_config_split.py",
         }:

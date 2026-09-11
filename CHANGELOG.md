@@ -4,6 +4,7 @@
 
 - `qua_libs_core.qua_config` (`split_qua_config` / `merge_qua_config`) for the QUA 1.4.0 controller/logical config split
 - `qua141_migration/` kit: bulk migrators, simulation harness, grep gates, guide/runbook, and modality bootstrap (run with `--repo` from a modality checkout)
+- Config-split migrator and grep gates also treat QCA `config_*.py` files (not only `configuration*.py`)
 
 ### Changed
 

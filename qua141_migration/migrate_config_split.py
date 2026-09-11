@@ -111,7 +111,7 @@ def split_configuration_file(path: Path) -> bool:
 def migrate_qca_scripts(qca_root: Path) -> int:
     count = 0
     for py in qca_root.rglob("*.py"):
-        if is_ignored_path(py) or py.name.startswith("configuration") or py.name == "qua_config_split.py":
+        if is_ignored_path(py) or py.name.startswith("config") or py.name == "qua_config_split.py":
             continue
         text = py.read_text(encoding="utf-8")
         original = text
@@ -238,7 +238,11 @@ def main() -> None:
     repo = target_repo(args.repo)
     qca_root = resolve_qca_root(modality=args.modality, qca_root=args.qca_root, repo=repo)
 
-    config_paths = list(qca_root.rglob("configuration*.py"))
+    config_paths = [
+        p
+        for p in qca_root.rglob("*.py")
+        if not is_ignored_path(p) and p.name.startswith("config") and p.suffix == ".py"
+    ]
     tutorial_cfg = repo / "Tutorials" / "intro-to-QUAlibrate" / "configuration" / "configuration_with_lf_fem_and_mw_fem.py"
     if tutorial_cfg.exists():
         config_paths.append(tutorial_cfg)

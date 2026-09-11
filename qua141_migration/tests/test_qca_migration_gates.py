@@ -59,7 +59,14 @@ def _skip_if_no_qca_root() -> None:
 
 def discover_configuration_files() -> list[Path]:
     _skip_if_no_qca_root()
-    return sorted(QCA_ROOT.rglob("configuration*.py"))
+    files: list[Path] = []
+    for path in sorted(QCA_ROOT.rglob("*.py")):
+        if not path.name.startswith("config"):
+            continue
+        if any(part in {".venv", ".git", "__pycache__", "site-packages"} for part in path.parts):
+            continue
+        files.append(path)
+    return files
 
 
 def discover_qca_python_files() -> list[Path]:
@@ -77,7 +84,7 @@ def discover_qca_python_files() -> list[Path]:
 def discover_qca_scripts_with_execute_or_simulate() -> list[Path]:
     files: list[Path] = []
     for path in discover_qca_python_files():
-        if path.name.startswith("configuration"):
+        if path.name.startswith("config"):
             continue
         try:
             text = path.read_text(encoding="utf-8")
@@ -251,7 +258,7 @@ def test_simulation_wait_until_before_samples_in_opx1000_qca() -> None:
     wait_pattern = re.compile(r"""wait_until\s*\(\s*['"]Done['"]\s*\)""")
     violations: list[str] = []
     for path in discover_qca_python_files():
-        if path.name.startswith("configuration"):
+        if path.name.startswith("config"):
             continue
         try:
             text = path.read_text(encoding="utf-8")
