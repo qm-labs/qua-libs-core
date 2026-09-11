@@ -13,22 +13,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from migration_paths import add_target_args, is_ignored_path, qualibration_roots, resolve_qca_root, target_repo
 
 # pulse_expr * amp(args) — pulse may be quoted string, identifier, or f-string / attribute
-PULSE_AMP = re.compile(
-    r"(?P<pulse>(?:[\w.]+|\"[^\"]*\"|'[^']*'|f\"[^\"]*\"))\s*\*\s*amp\((?P<args>[^)]*)\)"
-)
+_PULSE = r"(?:[\w.]+|\"[^\"]*\"|'[^']*'|f\"[^\"]*\")"
+_AMP_ARGS = r"(?:[^()]|\([^()]*\))*"
+PULSE_AMP = re.compile(rf"(?P<pulse>{_PULSE})\s*\*\s*amp\((?P<args>{_AMP_ARGS})\)")
 
 PLAY_CALL = re.compile(
-    r"play\(\s*(?P<pulse_amp>(?:[\w.\"']+|f\"[^\"]*\"|\{[^}]+\})\s*\*\s*amp\([^)]+\)),\s*(?P<tail>[^)]+)\)",
+    rf"play\(\s*(?P<pulse_amp>{_PULSE}\s*\*\s*amp\({_AMP_ARGS}\)),\s*(?P<tail>[^)]+)\)",
     re.DOTALL,
 )
 
 MEASURE_INLINE = re.compile(
-    r"measure\(\s*(?P<pulse_amp>(?:[\w.\"']+|f\"[^\"]*\"|\{[^}]+\})\s*\*\s*amp\([^)]+\)),\s*(?P<tail>[^)]+)\)",
+    rf"measure\(\s*(?P<pulse_amp>{_PULSE}\s*\*\s*amp\({_AMP_ARGS}\)),\s*(?P<tail>[^)]+)\)",
     re.DOTALL,
 )
 
 MEASURE_MULTILINE_FIRST = re.compile(
-    r"(measure\(\s*\n\s*)(?P<pulse_amp>(?:[\w.\"']+|f\"[^\"]*\"|\{[^}]+\})\s*\*\s*amp\([^)]+\)),(\s*\n)",
+    rf"(measure\(\s*\n\s*)(?P<pulse_amp>{_PULSE}\s*\*\s*amp\({_AMP_ARGS}\)),(\s*\n)",
     re.MULTILINE,
 )
 
