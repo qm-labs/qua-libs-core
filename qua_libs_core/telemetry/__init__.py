@@ -29,7 +29,17 @@ from .utils import (
 )
 from .calibration_node import instrument_calibration_node
 from .params import config_fingerprint, qca_param_attributes
-from .qca_script import instrument_qca_script
+from .qca_telemetry import QcaTelemetry, start_qca_telemetry
+from .qca_telemetry_wrappers import (
+    traced_call,
+    trace_execute,
+    trace_fetching,
+    trace_fit,
+    trace_get_simulated_samples,
+    trace_open_qm,
+    trace_qmm,
+    trace_simulate,
+)
 from .project_config import PROJECT_CONFIG, load_project_config
 
 
@@ -47,7 +57,16 @@ __all__ = [
     "set_span_status",
     "get_current_span",
     "instrument_calibration_node",
-    "instrument_qca_script",
+    "start_qca_telemetry",
+    "QcaTelemetry",
+    "traced_call",
+    "trace_qmm",
+    "trace_open_qm",
+    "trace_execute",
+    "trace_simulate",
+    "trace_get_simulated_samples",
+    "trace_fetching",
+    "trace_fit",
     "qca_param_attributes",
     "config_fingerprint",
     "PROJECT_CONFIG",

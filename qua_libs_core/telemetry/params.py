@@ -40,9 +40,15 @@ logger = logging.getLogger(__name__)
 _HASH_ONLY = {"config"}
 
 # Result payloads that get merged into save_data_dict *after* the run. They should
-# never appear as parameters -- see the snapshot-timing note in instrument_qca_script.
+# never appear as parameters -- see the snapshot-timing note in start_qca_telemetry.
 _RESULT_KEYS = {
-    "I_data", "Q_data", "fig_live", "fig", "figure", "state_data", "adc_data",
+    "I_data",
+    "Q_data",
+    "fig_live",
+    "fig",
+    "figure",
+    "state_data",
+    "adc_data",
 }
 
 # The same physical quantity is spelled differently across scripts. Normalise so a
