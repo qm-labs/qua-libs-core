@@ -12,9 +12,16 @@ from qm import SimulationConfig
 import numpy as np
 import matplotlib.pyplot as plt
 from configuration import *
+from qua_libs_core.telemetry import (
+    start_qca_telemetry,
+    trace_get_simulated_samples,
+    trace_qmm,
+    trace_simulate,
+)
 
 qop_ip = None
-qmm = QuantumMachinesManager(host=qop_ip)
+telemetry = start_qca_telemetry(__file__, resource_attributes={"experiment.category": "tutorial"})
+qmm = trace_qmm(QuantumMachinesManager)(host=qop_ip)
 
 ### First example - Linear chirp
 
@@ -23,9 +30,9 @@ units = "Hz/nsec"
 with program() as prog:
     play("const", "qe1", chirp=(rate, units))
 
-job = qmm.simulate(config, prog, SimulationConfig(int(pulse_duration // 4)))  # in clock cycles, 4 ns
+job = trace_simulate(qmm.simulate)(config, prog, SimulationConfig(int(pulse_duration // 4)))  # in clock cycles, 4 ns
 
-samples = job.get_simulated_samples()
+samples = trace_get_simulated_samples(job.get_simulated_samples)()
 x = samples.con1.analog["1"]
 NFFT = 2**10
 Fs = 1e9
@@ -55,9 +62,9 @@ with program() as prog:
     update_frequency("qe1", f_start)
     play("const", "qe1", chirp=(rates, units))
 
-job = qmm.simulate(config, prog, SimulationConfig(int(pulse_duration // 4)))  # in clock cycles, 4 ns
+job = trace_simulate(qmm.simulate)(config, prog, SimulationConfig(int(pulse_duration // 4)))  # in clock cycles, 4 ns
 
-samples = job.get_simulated_samples()
+samples = trace_get_simulated_samples(job.get_simulated_samples)()
 
 x = samples.con1.analog["1"]
 NFFT = 2**10
@@ -71,3 +78,5 @@ ax1.set_yticklabels((ax1.get_yticks() / 1e6).astype(int))
 plt.title("Quadratic Chirp")
 plt.xlabel("t [us]")
 plt.ylabel("f [MHz]")
+
+telemetry.end()

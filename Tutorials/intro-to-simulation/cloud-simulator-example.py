@@ -1,6 +1,13 @@
 from qm import QuantumMachinesManager, SimulationConfig
 from qm.qua import play, program
 from qm_saas import QoPVersion, QmSaas
+from qua_libs_core.telemetry import (
+    start_qca_telemetry,
+    trace_get_simulated_samples,
+    trace_open_qm,
+    trace_qmm,
+    trace_simulate,
+)
 
 # for qm-saas version 1.1.1
 
@@ -52,8 +59,9 @@ client = QmSaas(email=email, password=password)
 version = QoPVersion.v2_2_2
 
 with client.simulator(version=version) as instance:  # Specify the QOP version
+    telemetry = start_qca_telemetry(__file__, resource_attributes={"experiment.category": "tutorial"})
     # Initialize QuantumMachinesManager with the simulation instance details
-    qmm = QuantumMachinesManager(
+    qmm = trace_qmm(QuantumMachinesManager)(
         host=instance.host, port=instance.port, connection_headers=instance.default_connection_headers
     )
 
@@ -62,12 +70,13 @@ with client.simulator(version=version) as instance:  # Specify the QOP version
         play("playOp", "qe1")
 
     # Open quantum machine with the provided configuration and simulate the QUA program
-    qm = qmm.open_qm(config)
-    job = qm.simulate(prog, SimulationConfig(int(1000)))
+    qm = trace_open_qm(qmm.open_qm)(config)
+    job = trace_simulate(qm.simulate)(prog, SimulationConfig(int(1000)))
 
     # Retrieve and handle simulated samples
-    samples = job.get_simulated_samples()
+    samples = trace_get_simulated_samples(job.get_simulated_samples)()
     print("Test passed")
+    telemetry.end()
 
 # analysis of simulation
 # do something with samples

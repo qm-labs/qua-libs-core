@@ -1,4 +1,4 @@
-"""Telemetry setup: Docker check, local Uptrace stack, and .qua-libs/telemetry.toml."""
+"""Telemetry setup: local SQLite config, optional Docker/Uptrace stack."""
 
 from __future__ import annotations
 
@@ -199,22 +199,43 @@ def _run_uptrace_setup_windows(compose_dir: Path, compose_file: Path) -> None:
     raise RuntimeError("Uptrace did not respond within ~180s.")
 
 
-def write_telemetry_config(repo_root: Path, settings: InstallerSettings) -> Path:
+def write_telemetry_config(
+    repo_root: Path,
+    settings: InstallerSettings,
+    *,
+    include_dsn: bool = False,
+) -> Path:
+    """Write ``.qua-libs/telemetry.toml``. DSN is only included when Uptrace was set up."""
     telemetry = settings.telemetry
     config_dir = repo_root / TELEMETRY_CONFIG_DIR
     config_dir.mkdir(parents=True, exist_ok=True)
     config_path = config_dir / TELEMETRY_CONFIG_FILE
 
-    contents = (
-        "[telemetry]\n"
-        f"enabled = true\n"
-        f'dsn = "{telemetry.dsn}"\n'
-        f'service_name = "{telemetry.service_name}"\n'
-        f'deployment_environment = "{telemetry.deployment_environment}"\n'
+    lines = [
+        "[telemetry]",
+        "enabled = true",
+        f'service_name = "{telemetry.service_name}"',
+        f'deployment_environment = "{telemetry.deployment_environment}"',
+    ]
+    if include_dsn:
+        lines.append(f'dsn = "{telemetry.dsn}"')
+    lines.extend(
+        [
+            "",
+            "[telemetry.local]",
+            'path = ".qua-libs/traces.sqlite"',
+            "",
+        ]
     )
-    config_path.write_text(contents, encoding="utf-8")
-    logging.info("Wrote telemetry config to %s", config_path)
+    config_path.write_text("\n".join(lines), encoding="utf-8")
+    logging.info("Wrote telemetry config to %s (dsn=%s)", config_path, include_dsn)
     return config_path
+
+
+def _want_uptrace(options: InstallOptions) -> bool:
+    if options.skip_telemetry_setup:
+        return False
+    return bool(options.uptrace)
 
 
 def setup_telemetry(
@@ -225,13 +246,16 @@ def setup_telemetry(
     prompt_retry: Callable[[str], bool] | None = None,
 ) -> bool:
     """
-    Stand up local Uptrace (if needed) and write <repo>/.qua-libs/telemetry.toml.
+    Write ``<repo>/.qua-libs/telemetry.toml`` (local SQLite). Optionally start Uptrace.
 
-    Returns True when telemetry is fully configured, False when skipped or failed.
+    Returns True when the config file was written. Docker/Uptrace failure still
+    leaves local-only telemetry enabled.
     """
-    if options.skip_telemetry_setup:
-        logging.info("Skipping Uptrace stack setup (--skip-telemetry-setup)")
-        write_telemetry_config(repo_root, settings)
+    want_uptrace = _want_uptrace(options)
+
+    if not want_uptrace:
+        logging.info("Telemetry: local SQLite only (no Uptrace stack)")
+        write_telemetry_config(repo_root, settings, include_dsn=False)
         return True
 
     config_path = telemetry_config_path(repo_root)
@@ -247,12 +271,14 @@ def setup_telemetry(
             f"\nTelemetry config exists at {config_path} but Uptrace is not responding. Re-run setup?",
             default=True,
         ):
-            logging.warning("Keeping existing telemetry config; Uptrace may not be running")
-            return False
+            logging.warning("Keeping existing telemetry config; writing local-only settings")
+            write_telemetry_config(repo_root, settings, include_dsn=False)
+            return True
 
     if not ensure_docker(options, prompt_retry=prompt_retry):
-        logging.error("Docker is not available; skipping telemetry setup")
-        return False
+        logging.warning("Docker is not available; enabling local SQLite telemetry without Uptrace")
+        write_telemetry_config(repo_root, settings, include_dsn=False)
+        return True
 
     bundle_dir = resolve_self_host_bundle(settings)
 
@@ -262,17 +288,19 @@ def setup_telemetry(
         try:
             run_uptrace_setup(bundle_dir)
         except subprocess.CalledProcessError as exc:
-            logging.error("Uptrace setup failed (exit %s)", exc.returncode)
-            return False
+            logging.error("Uptrace setup failed (exit %s); enabling local SQLite only", exc.returncode)
+            write_telemetry_config(repo_root, settings, include_dsn=False)
+            return True
 
         if not uptrace_healthy(settings.telemetry.health_url):
             logging.error(
-                "Uptrace did not become healthy at %s after setup",
+                "Uptrace did not become healthy at %s; enabling local SQLite only",
                 settings.telemetry.health_url,
             )
-            return False
+            write_telemetry_config(repo_root, settings, include_dsn=False)
+            return True
 
-    write_telemetry_config(repo_root, settings)
+    write_telemetry_config(repo_root, settings, include_dsn=True)
     return True
 
 

@@ -6,7 +6,7 @@ Steps implemented:
   1. Interactive prompts and repository clone
   2. uv bootstrap, Python venv, and package install
   3. setup-qualibrate-config (non-interactive via qualibrate config --auto-accept)
-  4. optional telemetry (Docker + local Uptrace + .qua-libs/telemetry.toml)
+  4. optional telemetry (local SQLite; optionally Docker + Uptrace)
 """
 
 from __future__ import annotations
@@ -235,9 +235,15 @@ def build_plan_from_options(manifest: Manifest, options: InstallOptions) -> Inst
         if options.non_interactive:
             enable_telemetry = False
         else:
-            enable_telemetry = prompt_yes_no("\nEnable telemetry (local Uptrace)?", default=False)
+            enable_telemetry = prompt_yes_no("\nEnable telemetry (local SQLite store)?", default=False)
     else:
         enable_telemetry = options.telemetry
+
+    if enable_telemetry and options.uptrace is None and not options.skip_telemetry_setup:
+        if options.non_interactive:
+            options.uptrace = False
+        else:
+            options.uptrace = prompt_yes_no("Also start local Uptrace (Docker)?", default=False)
 
     python_version = resolve_python_version(options, manifest.settings)
 
@@ -605,7 +611,12 @@ def build_summary_lines(
     if plan.enable_telemetry:
         if telemetry_configured:
             lines.append(f"Telemetry:    enabled ({telemetry_config_path(repo_root)})")
-            lines.append(f"Uptrace UI:   {settings.telemetry.health_url}")
+            toml = telemetry_config_path(repo_root)
+            has_dsn = toml.is_file() and "dsn =" in toml.read_text(encoding="utf-8")
+            if has_dsn:
+                lines.append(f"Uptrace UI:   {settings.telemetry.health_url}")
+            else:
+                lines.append("Uptrace:      not started (local SQLite only)")
         else:
             lines.append("Telemetry:    requested but setup did not complete (see log)")
     else:
@@ -654,7 +665,7 @@ def print_summary(
     if not env_skipped and (env_root_dir / ".venv").is_dir():
         print("Activate the virtual environment at the repository root, then run QCA or calibration scripts.")
     elif plan.enable_telemetry and telemetry_configured:
-        print("Telemetry is enabled. Scripts under the install directory will send spans to Uptrace.")
+        print("Telemetry is enabled. Instrumented scripts write spans to .qua-libs/traces.sqlite.")
 
 
 def run_install(

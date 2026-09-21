@@ -48,9 +48,18 @@ def test_write_telemetry_config_at_repo_root(installer_modules, repo_root):
     assert path == repo_root / ".qua-libs" / "telemetry.toml"
     contents = path.read_text(encoding="utf-8")
     assert "enabled = true" in contents
-    assert settings.telemetry.dsn in contents
+    assert 'path = ".qua-libs/traces.sqlite"' in contents
     assert settings.telemetry.service_name in contents
     assert settings.telemetry.deployment_environment in contents
+    assert "dsn =" not in contents
+
+
+def test_write_telemetry_config_includes_dsn_when_requested(installer_modules, repo_root):
+    ts = installer_modules["telemetry_setup"]
+    settings = installer_modules["settings"]
+
+    contents = ts.write_telemetry_config(repo_root, settings, include_dsn=True).read_text(encoding="utf-8")
+    assert settings.telemetry.dsn in contents
 
 
 def test_setup_telemetry_skip_writes_config_only(installer_modules, repo_root):
@@ -73,9 +82,7 @@ def test_setup_telemetry_skip_writes_config_only(installer_modules, repo_root):
     run_setup.assert_not_called()
     ensure_docker.assert_not_called()
     assert ts.telemetry_config_path(repo_root).is_file()
-
-
-def test_setup_telemetry_fails_without_docker(installer_modules, repo_root):
+    assert "dsn =" not in ts.telemetry_config_path(repo_root).read_text(encoding="utf-8")
     ts = installer_modules["telemetry_setup"]
     settings = installer_modules["settings"]
     InstallOptions = installer_modules["InstallOptions"]
@@ -83,6 +90,7 @@ def test_setup_telemetry_fails_without_docker(installer_modules, repo_root):
     options = InstallOptions(
         modality="superconducting",
         dest=str(repo_root),
+        uptrace=True,
         yes=True,
         non_interactive=True,
     )
@@ -94,9 +102,11 @@ def test_setup_telemetry_fails_without_docker(installer_modules, repo_root):
     ):
         ok = ts.setup_telemetry(repo_root, settings, options)
 
-    assert ok is False
+    assert ok is True
     run_setup.assert_not_called()
-    assert not ts.telemetry_config_path(repo_root).is_file()
+    contents = ts.telemetry_config_path(repo_root).read_text(encoding="utf-8")
+    assert "enabled = true" in contents
+    assert "dsn =" not in contents
 
 
 def test_setup_telemetry_skips_when_healthy_and_config_exists(installer_modules, repo_root):
@@ -108,6 +118,7 @@ def test_setup_telemetry_skips_when_healthy_and_config_exists(installer_modules,
     options = InstallOptions(
         modality="superconducting",
         dest=str(repo_root),
+        uptrace=True,
         yes=True,
         non_interactive=True,
     )
@@ -132,6 +143,7 @@ def test_setup_telemetry_runs_setup_when_unhealthy(installer_modules, repo_root)
     options = InstallOptions(
         modality="superconducting",
         dest=str(repo_root),
+        uptrace=True,
         yes=True,
         non_interactive=True,
     )
@@ -147,9 +159,7 @@ def test_setup_telemetry_runs_setup_when_unhealthy(installer_modules, repo_root)
     assert ok is True
     run_setup.assert_called_once()
     assert ts.telemetry_config_path(repo_root).is_file()
-
-
-def test_setup_telemetry_force_reruns_when_healthy(installer_modules, repo_root):
+    assert settings.telemetry.dsn in ts.telemetry_config_path(repo_root).read_text(encoding="utf-8")
     ts = installer_modules["telemetry_setup"]
     settings = installer_modules["settings"]
     InstallOptions = installer_modules["InstallOptions"]
@@ -158,6 +168,7 @@ def test_setup_telemetry_force_reruns_when_healthy(installer_modules, repo_root)
     options = InstallOptions(
         modality="superconducting",
         dest=str(repo_root),
+        uptrace=True,
         force_telemetry=True,
         yes=True,
         non_interactive=True,

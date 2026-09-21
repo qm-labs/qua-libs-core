@@ -10,9 +10,16 @@ from qm import QuantumMachinesManager
 from qm.qua import *
 from qm import SimulationConfig
 from configuration import config
+from qua_libs_core.telemetry import (
+    start_qca_telemetry,
+    trace_get_simulated_samples,
+    trace_qmm,
+    trace_simulate,
+)
 
 qop_ip = None
-qmm = QuantumMachinesManager(host=qop_ip)
+telemetry = start_qca_telemetry(__file__, resource_attributes={"experiment.category": "tutorial"})
+qmm = trace_qmm(QuantumMachinesManager)(host=qop_ip)
 
 
 def declare_vars(stream_num=1):
@@ -75,13 +82,15 @@ with program() as prog:
     with stream_processing():
         c_streams[0].save_all("out_stream")
 
-job = qmm.simulate(config, prog, SimulationConfig(1500))
+job = trace_simulate(qmm.simulate)(config, prog, SimulationConfig(1500))
 res = job.result_handles
 out_str = res.out_stream.fetch_all()
-samples = job.get_simulated_samples()
+samples = trace_get_simulated_samples(job.get_simulated_samples)()
 samples.con1.plot()
 
 print("##################")
 print("b is saved three times, before and after every call to the modify_var macros")
 print(f"Before:{out_str[0][0]:.1f}, After 1st:{out_str[1][0]:.1f}, After 2nd:{out_str[2][0]:.1f}")
 print("##################")
+
+telemetry.end()

@@ -9,9 +9,16 @@ from qm.qua import *
 from qm import SimulationConfig
 import matplotlib.pyplot as plt
 from configuration import *
+from qua_libs_core.telemetry import (
+    start_qca_telemetry,
+    trace_get_simulated_samples,
+    trace_qmm,
+    trace_simulate,
+)
 
 qop_ip = None
-qmm = QuantumMachinesManager(host=qop_ip)
+telemetry = start_qca_telemetry(__file__, resource_attributes={"experiment.category": "tutorial"})
+qmm = trace_qmm(QuantumMachinesManager)(host=qop_ip)
 
 with program() as example1:
     play("cw1", "qubit")
@@ -38,8 +45,8 @@ with program() as example5:
     play("cw2", "qubit")
 
 # Simulate and plot 1st example
-job = qmm.simulate(config, example1, SimulationConfig(int(1000)))  # in clock cycles, 4 ns
-samples = job.get_simulated_samples()
+job = trace_simulate(qmm.simulate)(config, example1, SimulationConfig(int(1000)))  # in clock cycles, 4 ns
+samples = trace_get_simulated_samples(job.get_simulated_samples)()
 
 plt.figure(1)
 samples.con1.plot()
@@ -47,8 +54,8 @@ plt.title("example 1 - Two pulses from different elements")
 plt.legend(["qubit", "resonator"])
 
 # Simulate and plot 2nd example
-job = qmm.simulate(config, example2, SimulationConfig(int(1000)))  # in clock cycles, 4 ns
-samples = job.get_simulated_samples()
+job = trace_simulate(qmm.simulate)(config, example2, SimulationConfig(int(1000)))  # in clock cycles, 4 ns
+samples = trace_get_simulated_samples(job.get_simulated_samples)()
 
 plt.figure(2)
 samples.con1.plot()
@@ -56,8 +63,8 @@ plt.title("example 2 - Two pulses from different elements with wait command")
 plt.legend(["qubit", "resonator"])
 
 # Simulate and plot 3rd example
-job = qmm.simulate(config, example3, SimulationConfig(int(1000)))  # in clock cycles, 4 ns
-samples = job.get_simulated_samples()
+job = trace_simulate(qmm.simulate)(config, example3, SimulationConfig(int(1000)))  # in clock cycles, 4 ns
+samples = trace_get_simulated_samples(job.get_simulated_samples)()
 
 plt.figure(3)
 samples.con1.plot()
@@ -65,8 +72,8 @@ plt.title("example 3 - Two pulses from different elements \n with align command 
 plt.legend(["qubit", "resonator"])
 
 # Simulate and plot 4th example
-job = qmm.simulate(config, example4, SimulationConfig(int(1000)))  # in clock cycles, 4 ns
-samples = job.get_simulated_samples()
+job = trace_simulate(qmm.simulate)(config, example4, SimulationConfig(int(1000)))  # in clock cycles, 4 ns
+samples = trace_get_simulated_samples(job.get_simulated_samples)()
 
 plt.figure(4)
 samples.con1.plot()
@@ -74,10 +81,12 @@ plt.title("example 4 - Two pulses from different elements \n with align command 
 plt.legend(["qubit", "resonator"])
 
 # Simulate and plot 5th example
-job = qmm.simulate(config, example5, SimulationConfig(int(1000)))  # in clock cycles, 4 ns
-samples = job.get_simulated_samples()
+job = trace_simulate(qmm.simulate)(config, example5, SimulationConfig(int(1000)))  # in clock cycles, 4 ns
+samples = trace_get_simulated_samples(job.get_simulated_samples)()
 
 plt.figure(5)
 samples.con1.plot("analog1")
 plt.title("example 5 - Two pulses from the same element")
 plt.legend(["qubit"])
+
+telemetry.end()

@@ -1,7 +1,8 @@
 # Telemetry and the QUA Libraries installer
 
-The graphical and CLI installers can optionally stand up a **local Uptrace server**
-(Docker) and write `.qua-libs/telemetry.toml` at the **repository root**.
+The graphical and CLI installers can optionally enable **local SQLite telemetry**
+and, separately, stand up a **local Uptrace server** (Docker). Both write
+`.qua-libs/telemetry.toml` at the **repository root**.
 
 Telemetry is **opt-in** — unchecked in the GUI by default.
 
@@ -9,11 +10,14 @@ Telemetry is **opt-in** — unchecked in the GUI by default.
 
 When telemetry is enabled:
 
-1. Checks that Docker is installed and the daemon is running
-2. Runs `setup_uptrace_local.ps1` (Windows) or `setup_uptrace_local.sh` (Linux/macOS)
-   from the bundled `telemetry-self-host/` directory
-3. Waits until Uptrace responds at `http://localhost:14318`
-4. Writes `<install>/.qua-libs/telemetry.toml` with `enabled = true` and the local DSN
+1. Writes `<install>/.qua-libs/telemetry.toml` with `enabled = true` and a local
+   SQLite store (`[telemetry.local] path = ".qua-libs/traces.sqlite"`). **Docker is
+   not required.**
+2. If you also opt in to Uptrace: checks Docker, starts the local stack, waits
+   until `http://localhost:14318` responds, and adds the DSN to the toml.
+
+If Docker is missing or Uptrace fails to start, install still succeeds with
+**local-only** telemetry (no DSN).
 
 It does **not** instrument calibration files — that is a separate step
 (see [HOW_TO_ADD_TELEMETRY.md](HOW_TO_ADD_TELEMETRY.md)).
@@ -26,16 +30,17 @@ It does **not** instrument calibration files — that is a separate step
 | Virtual environment | `<install>/.venv` (single uv workspace) |
 | QUAlibrate workdir | `<install>/qualibration_graphs/<modality>/` |
 | Telemetry config | `<install>/.qua-libs/telemetry.toml` |
-| Uptrace UI | `http://localhost:14318` (login `admin@example.com` / `admin`) |
+| Local span store | `<install>/.qua-libs/traces.sqlite` |
+| Uptrace UI | `http://localhost:14318` (login `admin@example.com` / `admin`; optional) |
 
 Examples under `Quantum-Control-Applications/` and calibrations under
 `qualibration_graphs/` share the same `.venv` and the same telemetry config.
 
 ## GUI
 
-- Checkbox: **Enable telemetry (local Uptrace via Docker)**
-- If Docker is missing or not running, a retry dialog is shown (with optional link to
-  Docker install docs)
+- Checkbox: **Enable telemetry (local SQLite store)**
+- Checkbox: **Also start local Uptrace (Docker)** (only when telemetry is on)
+- Docker retry dialog only if Uptrace is requested and Docker is not ready
 - Install location: parent folder or full path ending in the repo name
   (e.g. `...\qua-libs-superconducting`). See `tools/installer/README.md`.
 
@@ -47,15 +52,17 @@ python install.py --modality superconducting --dest /path/to/parent --telemetry
 
 | Flag | Purpose |
 |------|---------|
-| `--telemetry` | Enable telemetry setup |
-| `--skip-telemetry-setup` | Write `telemetry.toml` only; do not start Docker stack |
+| `--telemetry` | Enable telemetry (write local SQLite config) |
+| `--uptrace` | Also start local Uptrace (Docker) and add a DSN |
+| `--skip-telemetry-setup` | Same as `--telemetry` without `--uptrace` |
 | `--force-telemetry` | Re-run Uptrace setup even if already healthy |
 | `--skip-env` | Skip venv / `uv sync` |
 | `--existing-action` | `reinstall`, `skip`, or `abort` when install path exists |
 
 ## After install
 
-**View spans:** open `http://localhost:14318` after running an instrumented script.
+**View spans:** query `<install>/.qua-libs/traces.sqlite`. If Uptrace was started,
+also open `http://localhost:14318`.
 
 **Stop Uptrace** (keep data):
 
@@ -71,8 +78,8 @@ powershell -ExecutionPolicy Bypass -File .\stop_uptrace_local.ps1
 powershell -ExecutionPolicy Bypass -File .\setup_uptrace_local.ps1
 ```
 
-**Disable span export without stopping Uptrace:** edit `<install>/.qua-libs/telemetry.toml`
-and set `enabled = false`. See [CONFIGURATION.md](CONFIGURATION.md).
+**Disable telemetry:** edit `<install>/.qua-libs/telemetry.toml` and set
+`enabled = false`. See [CONFIGURATION.md](CONFIGURATION.md).
 
 ## PyInstaller bundle
 

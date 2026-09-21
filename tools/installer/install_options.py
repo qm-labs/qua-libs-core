@@ -13,6 +13,7 @@ class InstallOptions:
     modality: str | None = None
     dest: str | None = None
     telemetry: bool | None = None
+    uptrace: bool | None = None
     existing_action: str | None = None
     python: str | None = None
     skip_env: bool = False
@@ -44,7 +45,12 @@ def parse_args(argv: list[str] | None, manifest: Manifest) -> InstallOptions:
     parser.add_argument(
         "--telemetry",
         action=argparse.BooleanOptionalAction,
-        help="Enable telemetry setup (interactive prompt if omitted).",
+        help="Enable telemetry (local SQLite store; interactive prompt if omitted).",
+    )
+    parser.add_argument(
+        "--uptrace",
+        action=argparse.BooleanOptionalAction,
+        help="Also start local Uptrace via Docker and add a DSN to telemetry.toml.",
     )
     parser.add_argument(
         "--existing-action",
@@ -74,7 +80,7 @@ def parse_args(argv: list[str] | None, manifest: Manifest) -> InstallOptions:
     parser.add_argument(
         "--skip-telemetry-setup",
         action="store_true",
-        help="Skip Docker/Uptrace stack setup; only write .qua-libs/telemetry.toml.",
+        help="Skip Docker/Uptrace; write a local-only telemetry.toml (same as --telemetry without --uptrace).",
     )
     parser.add_argument(
         "--force-telemetry",
@@ -92,6 +98,7 @@ def parse_args(argv: list[str] | None, manifest: Manifest) -> InstallOptions:
         modality=args.modality,
         dest=args.dest,
         telemetry=args.telemetry,
+        uptrace=args.uptrace,
         existing_action=args.existing_action,
         python=args.python,
         skip_env=args.skip_env,

@@ -10,9 +10,16 @@ from qm import QuantumMachinesManager
 from qm.qua import *
 from qm import SimulationConfig
 from configuration import *
+from qua_libs_core.telemetry import (
+    start_qca_telemetry,
+    trace_get_simulated_samples,
+    trace_qmm,
+    trace_simulate,
+)
 
 qop_ip = None
-qmm = QuantumMachinesManager(host=qop_ip)
+telemetry = start_qca_telemetry(__file__, resource_attributes={"experiment.category": "tutorial"})
+qmm = trace_qmm(QuantumMachinesManager)(host=qop_ip)
 
 with program() as prog:
     play("const", "qe1")
@@ -24,7 +31,9 @@ with program() as prog:
     play("const_stutter", "qe2")
 
 
-job = qmm.simulate(config, prog, SimulationConfig(int(3000)))  # in clock cycles, 4 ns
+job = trace_simulate(qmm.simulate)(config, prog, SimulationConfig(int(3000)))  # in clock cycles, 4 ns
 
-samples = job.get_simulated_samples()
+samples = trace_get_simulated_samples(job.get_simulated_samples)()
 samples.con1.plot()
+
+telemetry.end()

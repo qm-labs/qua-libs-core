@@ -9,6 +9,7 @@ from qm.qua import *
 import time
 import matplotlib.pyplot as plt
 from qualang_tools.units import unit
+from qua_libs_core.telemetry import start_qca_telemetry, trace_execute, trace_open_qm, trace_qmm
 
 # Flags to switch between different modes defined below
 check_up_converters = False
@@ -266,9 +267,10 @@ config = {
     },
 }
 
-qmm = QuantumMachinesManager(host=qop_ip, port=opx_port, cluster_name=cluster_name)
+telemetry = start_qca_telemetry(__file__, resource_attributes={"experiment.category": "tutorial"})
+qmm = trace_qmm(QuantumMachinesManager)(host=qop_ip, port=opx_port, cluster_name=cluster_name)
 
-qm = qmm.open_qm(config)
+qm = trace_open_qm(qmm.open_qm)(config)
 
 # Simple test program that plays a continuous wave through all ports
 with program() as hello_octave:
@@ -282,7 +284,7 @@ with program() as hello_octave:
 #######################################
 if check_up_converters:
     print("-" * 37 + " Checking up-converters")
-    job = qm.execute(hello_octave)
+    job = trace_execute(qm.execute)(hello_octave)
     time.sleep(60)  # The program will run for 1 minute
     job.halt()
     # You can connect RF1, RF2, RF3, RF4, RF5 to a spectrum analyzer and check the 3 peaks before calibration:
@@ -303,7 +305,7 @@ if check_triggers:
             for el in elements:
                 play("cw", el, duration=1e9)
                 play("cw_wo_trig", el, duration=1e9)
-    job = qm.execute(hello_octave_trigger)
+    job = trace_execute(qm.execute)(hello_octave_trigger)
     time.sleep(60)  # The program will run for 1 minute
     job.halt()
 
@@ -327,7 +329,7 @@ if check_down_converters:
                 raw_ADC_1.input1().save("adc_1")
                 raw_ADC_1.input2().save("adc_2")
         # Execute the program
-        job = qm.execute(hello_octave_readout_1)
+        job = trace_execute(qm.execute)(hello_octave_readout_1)
         res = job.result_handles
         res.wait_for_all_values()
         # Plot the results
@@ -357,7 +359,7 @@ if check_down_converters:
                 raw_ADC_2.input1().save("adc_1")
                 raw_ADC_2.input2().save("adc_2")
         # Execute the program
-        job = qm.execute(hello_octave_readout_2)
+        job = trace_execute(qm.execute)(hello_octave_readout_2)
         res = job.result_handles
         res.wait_for_all_values()
         # Plot the results
@@ -382,7 +384,7 @@ if check_down_converters:
 if calibration:
     print("-" * 37 + " Play before calibration")
     # Step 5.1: Connect RF1 and run these lines in order to see the uncalibrated signal first
-    job = qm.execute(hello_octave)
+    job = trace_execute(qm.execute)(hello_octave)
     time.sleep(10)  # The program will run for 10 seconds
     job.halt()
     # Step 5.2: Run this in order to calibrate
@@ -391,6 +393,8 @@ if calibration:
         qm.calibrate_element(element, {LO: (IF,)})  # can provide many IFs for specific LO
     # Step 5.3: Run these and look at the spectrum analyzer and check if you get 1 peak at LO+IF (i.e. 6.05GHz)
     print("-" * 37 + " Play after calibration")
-    job = qm.execute(hello_octave)
+    job = trace_execute(qm.execute)(hello_octave)
     time.sleep(30)  # The program will run for 30 seconds
     job.halt()
+
+telemetry.end()
