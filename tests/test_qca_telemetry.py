@@ -23,8 +23,7 @@ def exporter(monkeypatch):
     exporter = InMemorySpanExporter()
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
-    monkeypatch.setattr(telemetry_config, "_telemetry_initialized", True)
-    monkeypatch.setattr(telemetry_config, "_tracer", provider.get_tracer("test"))
+    monkeypatch.setattr(telemetry_config, "_runtime", telemetry_config._Runtime(tracer=provider.get_tracer("test")))
 
     registered = []
     monkeypatch.setattr(atexit, "register", lambda fn, *a, **k: registered.append((fn, a)) or fn)

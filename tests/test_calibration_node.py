@@ -89,13 +89,10 @@ def _reset_telemetry_globals():
     """Reset the module-level globals so each test starts clean."""
     import qua_libs_core.telemetry.config as cfg
 
-    orig_initialized = cfg._telemetry_initialized
-    orig_tracer = cfg._tracer
-    cfg._telemetry_initialized = False
-    cfg._tracer = None
+    orig = cfg._runtime
+    cfg._runtime = None
     yield
-    cfg._telemetry_initialized = orig_initialized
-    cfg._tracer = orig_tracer
+    cfg._runtime = orig
 
 
 @pytest.fixture
@@ -110,12 +107,17 @@ def node():
 
 def _instrument_with_disabled_uptrace(node, **kwargs):
     """Call instrument_calibration_node with uptrace.configure patched out."""
-    from qua_libs_core.telemetry.config import TelemetryConfig
+    import tempfile
+    from pathlib import Path
 
+    from qua_libs_core.telemetry.config_types import TelemetryConfig
+
+    local_dir = Path(tempfile.mkdtemp())
     config = kwargs.pop("config", None) or TelemetryConfig(
         dsn="https://fake@localhost?grpc=4317",
         service_name="test-service",
         enabled=True,
+        local_path=str(local_dir / "traces.sqlite"),
         **{k: v for k, v in kwargs.items() if k == "resource_attributes"},
     )
     remaining = {k: v for k, v in kwargs.items() if k != "resource_attributes"}
@@ -232,14 +234,14 @@ class TestExtraAttributes:
 
 
 # ---------------------------------------------------------------------------
-# 3. resource_attributes — merged into config without mutating PROJECT_CONFIG
+# 3. resource_attributes — merged onto a copy of the passed config
 # ---------------------------------------------------------------------------
 
 
 class TestResourceAttributes:
     def test_resource_attributes_merged_into_config(self, node):
         """resource_attributes should be passed to init_telemetry via config."""
-        from qua_libs_core.telemetry.config import TelemetryConfig
+        from qua_libs_core.telemetry.config_types import TelemetryConfig
 
         captured_config = {}
 
@@ -276,7 +278,7 @@ class TestResourceAttributes:
             captured_config["resource_attributes"] = config.resource_attributes
 
         with patch("qua_libs_core.telemetry.calibration_node.init_telemetry", side_effect=capture_init):
-            from qua_libs_core.telemetry.config import TelemetryConfig
+            from qua_libs_core.telemetry.config_types import TelemetryConfig
             from qua_libs_core.telemetry import instrument_calibration_node
 
             instrument_calibration_node(
@@ -301,7 +303,7 @@ class TestResourceAttributes:
             captured_config["resource_attributes"] = config.resource_attributes
 
         with patch("qua_libs_core.telemetry.calibration_node.init_telemetry", side_effect=capture_init):
-            from qua_libs_core.telemetry.config import TelemetryConfig
+            from qua_libs_core.telemetry.config_types import TelemetryConfig
             from qua_libs_core.telemetry import instrument_calibration_node
 
             instrument_calibration_node(
@@ -318,11 +320,12 @@ class TestResourceAttributes:
         attrs = captured_config["resource_attributes"]
         assert attrs["experiment.node"] == "custom_override_name"
 
-    def test_project_config_not_mutated(self):
-        """Passing resource_attributes must NOT mutate the shared PROJECT_CONFIG."""
-        from qua_libs_core.telemetry.project_config import PROJECT_CONFIG
+    def test_passed_config_is_not_mutated(self):
+        """Passing resource_attributes must not mutate the caller's TelemetryConfig."""
+        from qua_libs_core.telemetry.config_types import TelemetryConfig
 
-        original_attrs = dict(PROJECT_CONFIG.resource_attributes)
+        config = TelemetryConfig(enabled=True, dsn="https://fake@localhost?grpc=4317")
+        original_attrs = dict(config.resource_attributes)
 
         node = MockNode("mutation_test")
         with patch("qua_libs_core.telemetry.calibration_node.init_telemetry"):
@@ -330,16 +333,18 @@ class TestResourceAttributes:
 
             instrument_calibration_node(
                 node,
+                config=config,
                 resource_attributes={"should.not.leak": "true"},
             )
 
-        assert PROJECT_CONFIG.resource_attributes == original_attrs
+        assert config.resource_attributes == original_attrs
+        assert "should.not.leak" not in config.resource_attributes
 
 
 class TestProjectConfigReload:
     def test_instrumentation_reloads_telemetry_toml(self, monkeypatch, tmp_path):
         """instrument_calibration_node should read telemetry.toml at call time."""
-        from qua_libs_core.telemetry.config import TelemetryConfig
+        from qua_libs_core.telemetry.config_types import TelemetryConfig
 
         config_dir = tmp_path / ".qua-libs"
         config_dir.mkdir()

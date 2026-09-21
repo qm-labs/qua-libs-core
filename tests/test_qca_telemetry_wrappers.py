@@ -76,8 +76,7 @@ def _install_sdk(monkeypatch):
     exporter = InMemorySpanExporter()
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
-    monkeypatch.setattr(telemetry_config, "_telemetry_initialized", True)
-    monkeypatch.setattr(telemetry_config, "_tracer", provider.get_tracer("test"))
+    monkeypatch.setattr(telemetry_config, "_runtime", telemetry_config._Runtime(tracer=provider.get_tracer("test")))
     return exporter
 
 
@@ -215,8 +214,7 @@ def test_trace_fit_records_failure_swallowed_by_script(monkeypatch):
 
 
 def test_wrappers_run_when_tracer_is_noop(monkeypatch):
-    monkeypatch.setattr(telemetry_config, "_telemetry_initialized", True)
-    monkeypatch.setattr(telemetry_config, "_tracer", None)
+    monkeypatch.setattr(telemetry_config, "_runtime", telemetry_config._Runtime())
     qmm = FakeQMM()
     qm = trace_open_qm(qmm.open_qm)({})
     assert trace_execute(qm.execute)("p") == "job:p"

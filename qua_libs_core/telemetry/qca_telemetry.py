@@ -13,19 +13,18 @@ from __future__ import annotations
 
 import atexit
 import contextlib
-import logging
 import os
 import sys
+from dataclasses import replace
 from datetime import datetime
 from typing import Any, Dict, Mapping, Optional
 
 from opentelemetry.trace import Span, Status, StatusCode
 
-from .config import TelemetryConfig, get_tracer, init_telemetry
+from .config import force_flush, get_tracer, init_telemetry
+from .config_types import TelemetryConfig
+from .file_config import load_project_config
 from .params import qca_param_attributes
-from .project_config import load_project_config
-
-logger = logging.getLogger(__name__)
 
 
 class QcaTelemetry:
@@ -52,12 +51,7 @@ class QcaTelemetry:
             return
         with contextlib.suppress(Exception):
             stack.close()
-        try:
-            import uptrace
-
-            uptrace.force_flush()
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("Telemetry flush skipped: %s", exc)
+        force_flush()
 
     def record_exception(self, exc: BaseException) -> None:
         """Mark the root span as failed. Useful in a script's own ``except`` block."""
@@ -125,16 +119,9 @@ def start_qca_telemetry(
         "experiment.category": "QCA",
         "experiment.run_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
-    merged = {**auto_attrs, **(config.resource_attributes or {}), **(resource_attributes or {})}
-    if merged != (config.resource_attributes or {}):
-        config = TelemetryConfig(
-            dsn=config.dsn,
-            service_name=config.service_name,
-            service_version=config.service_version,
-            deployment_environment=config.deployment_environment,
-            enabled=config.enabled,
-            resource_attributes=merged,
-        )
+    merged = {**auto_attrs, **config.resource_attributes, **(resource_attributes or {})}
+    if merged != config.resource_attributes:
+        config = replace(config, resource_attributes=merged)
 
     init_telemetry(config)
 

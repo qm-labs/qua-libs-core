@@ -17,7 +17,8 @@ Example usage:
         ...
 """
 
-from .config import TelemetryConfig, init_telemetry, get_tracer
+from .config import force_flush, get_tracer, init_telemetry
+from .config_types import TelemetryConfig
 from .decorators import trace_function, trace_async_function
 from .context_managers import trace_span, trace_span_with_attributes
 from .utils import (
@@ -40,12 +41,13 @@ from .qca_telemetry_wrappers import (
     trace_qmm,
     trace_simulate,
 )
-from .project_config import PROJECT_CONFIG, load_project_config
+from .file_config import load_project_config
 
 
 __all__ = [
     "TelemetryConfig",
     "init_telemetry",
+    "force_flush",
     "get_tracer",
     "trace_function",
     "trace_async_function",
@@ -69,6 +71,5 @@ __all__ = [
     "trace_fit",
     "qca_param_attributes",
     "config_fingerprint",
-    "PROJECT_CONFIG",
     "load_project_config",
 ]

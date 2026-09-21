@@ -4,8 +4,7 @@ Off-by-default guarantees for the telemetry package.
 The core requirement: when telemetry is not explicitly enabled, the package
 makes *no attempt to send anything* — it never calls
 ``uptrace.configure_opentelemetry`` and hands back a no-op tracer. Enabling it
-without a destination must degrade gracefully (warn + stay disabled), never
-crash a calibration run.
+without a DSN records spans locally (SQLite) and still does not call Uptrace.
 """
 
 import pytest
@@ -17,9 +16,6 @@ from qua_libs_core.telemetry import config as telemetry_config
 _ENV_VARS = (
     "UPTRACE_ENABLED",
     "UPTRACE_DSN",
-    "UPTRACE_SERVICE_NAME",
-    "UPTRACE_SERVICE_VERSION",
-    "UPTRACE_ENV",
 )
 
 
@@ -28,8 +24,7 @@ def _clean_telemetry_state(monkeypatch):
     """Reset module globals and telemetry env vars before each test."""
     for var in _ENV_VARS:
         monkeypatch.delenv(var, raising=False)
-    monkeypatch.setattr(telemetry_config, "_telemetry_initialized", False)
-    monkeypatch.setattr(telemetry_config, "_tracer", None)
+    monkeypatch.setattr(telemetry_config, "_runtime", None)
 
 
 @pytest.fixture
@@ -60,10 +55,44 @@ def test_noop_tracer_when_disabled():
     assert isinstance(telemetry.get_tracer(), trace.NoOpTracer)
 
 
-def test_enabled_without_dsn_does_not_crash_or_send(configure_spy):
-    # Enabled but no DSN: must not raise, must not configure or send.
-    telemetry.init_telemetry(telemetry.TelemetryConfig(enabled=True))
+def test_enabled_without_dsn_writes_local_store(tmp_path, configure_spy):
+    import sqlite3
+
+    db = tmp_path / "traces.sqlite"
+    telemetry.init_telemetry(telemetry.TelemetryConfig(enabled=True, local_path=str(db)))
     assert configure_spy == []
+    tracer = telemetry.get_tracer()
+    assert not isinstance(tracer, trace.NoOpTracer)
+    with tracer.start_as_current_span("local_only"):
+        pass
+    telemetry.force_flush()
+
+    names = [row[0] for row in sqlite3.connect(db).execute("SELECT name FROM spans")]
+    assert names == ["local_only"]
+
+
+def test_force_flush_skips_uptrace_when_local_only(tmp_path, monkeypatch, configure_spy):
+    db = tmp_path / "traces.sqlite"
+    calls = []
+    monkeypatch.setattr(telemetry_config.uptrace, "force_flush", lambda: calls.append("flush"))
+    telemetry.init_telemetry(telemetry.TelemetryConfig(enabled=True, local_path=str(db)))
+    telemetry.force_flush()
+    assert calls == []
+
+
+def test_warns_when_no_exporter_starts(caplog, monkeypatch):
+    """A bad DSN plus an unopenable local store must not fail silently."""
+
+    def boom(*args, **kwargs):
+        raise ValueError("invalid DSN")
+
+    monkeypatch.setattr(telemetry_config.uptrace, "configure_opentelemetry", boom)
+    monkeypatch.setattr(telemetry_config, "_install_local_exporter", lambda provider, config: False)
+
+    with caplog.at_level("WARNING"):
+        telemetry.init_telemetry(telemetry.TelemetryConfig(enabled=True, dsn="not-a-dsn"))
+
+    assert "no exporter started" in caplog.text
     assert isinstance(telemetry.get_tracer(), trace.NoOpTracer)
 
 
