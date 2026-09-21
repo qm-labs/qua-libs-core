@@ -1,4 +1,4 @@
-"""Local SQLite span store and size-cap rotation."""
+"""Tests for qua_libs_core.telemetry.sqlite_exporter."""
 
 import sqlite3
 

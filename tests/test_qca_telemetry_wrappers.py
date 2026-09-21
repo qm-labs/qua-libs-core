@@ -1,4 +1,4 @@
-"""Instance/call wrappers for QCA spans (no library-class monkeypatch)."""
+"""Tests for qua_libs_core.telemetry.qca_telemetry_wrappers."""
 
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.trace import StatusCode

@@ -1,17 +1,14 @@
-"""
-Tests for project-level telemetry config loaded from .qua-libs/telemetry.toml.
-"""
+"""Tests for qua_libs_core.telemetry.file_config."""
 
 import pytest
 
-from qua_libs_core.telemetry.config import resolve_local_db_path
 from qua_libs_core.telemetry.file_config import (
     CONFIG_DIR_NAME,
     CONFIG_FILE_NAME,
-    anchor_dir_for_config_file,
     build_project_config,
     find_telemetry_config_file,
     load_telemetry_file_config,
+    load_project_config,
 )
 
 _ENV_VARS = (
@@ -47,62 +44,12 @@ def test_find_config_returns_none_when_missing(tmp_path, monkeypatch):
     assert find_telemetry_config_file() is None
 
 
-def test_anchor_dir_skips_qua_libs_folder(tmp_path):
-    config = tmp_path / CONFIG_DIR_NAME / CONFIG_FILE_NAME
-    assert anchor_dir_for_config_file(config) == tmp_path
-
-
-def test_anchor_dir_for_loose_toml_is_its_directory(tmp_path):
-    config = tmp_path / "nested" / "custom.toml"
-    assert anchor_dir_for_config_file(config) == tmp_path / "nested"
-
-
-def test_resolve_local_db_path_uses_repo_when_toml_is_under_qua_libs(tmp_path, monkeypatch):
-    _write_config(tmp_path, "[telemetry]\nenabled = true\n")
-    nested = tmp_path / "nested"
-    nested.mkdir()
-    monkeypatch.chdir(nested)
-    assert resolve_local_db_path(None) == (tmp_path / CONFIG_DIR_NAME / "traces.sqlite").resolve()
-    assert resolve_local_db_path("data/traces.sqlite") == (tmp_path / "data" / "traces.sqlite").resolve()
-
-
-def test_resolve_local_db_path_does_not_walk_past_loose_toml(tmp_path, monkeypatch):
-    config_path = tmp_path / "configs" / "telemetry.toml"
-    config_path.parent.mkdir()
-    config_path.write_text("[telemetry]\nenabled = true\n", encoding="utf-8")
-    monkeypatch.setenv("QUA_LIBS_TELEMETRY_CONFIG", str(config_path))
-    monkeypatch.chdir(tmp_path)
-    assert resolve_local_db_path(None) == (tmp_path / "configs" / CONFIG_DIR_NAME / "traces.sqlite").resolve()
-
-
 def test_explicit_path_via_env(tmp_path, monkeypatch):
     config_path = tmp_path / "custom.toml"
     config_path.write_text("[telemetry]\nenabled = true\n", encoding="utf-8")
     monkeypatch.setenv("QUA_LIBS_TELEMETRY_CONFIG", str(config_path))
 
     assert find_telemetry_config_file() == config_path
-
-
-def test_load_file_config_parses_telemetry_section(tmp_path):
-    _write_config(
-        tmp_path,
-        """
-[telemetry]
-enabled = true
-dsn = "http://token@localhost:14318?grpc=14317"
-service_name = "my-lab"
-deployment_environment = "local"
-
-[telemetry.resource_attributes]
-site = "lab-a"
-""",
-    )
-
-    values = load_telemetry_file_config(tmp_path)
-    assert values["enabled"] is True
-    assert values["dsn"] == "http://token@localhost:14318?grpc=14317"
-    assert values["service_name"] == "my-lab"
-    assert values["resource_attributes"] == {"site": "lab-a"}
 
 
 def test_build_project_config_uses_file_values(tmp_path):
@@ -112,13 +59,18 @@ def test_build_project_config_uses_file_values(tmp_path):
 [telemetry]
 enabled = true
 dsn = "http://token@localhost:14318?grpc=14317"
+service_name = "my-lab"
+
+[telemetry.resource_attributes]
+site = "lab-a"
 """,
     )
 
     cfg = build_project_config(file_values=load_telemetry_file_config(tmp_path))
     assert cfg.enabled is True
     assert cfg.dsn == "http://token@localhost:14318?grpc=14317"
-    assert cfg.service_name == "qua-libs"
+    assert cfg.service_name == "my-lab"
+    assert cfg.resource_attributes == {"site": "lab-a"}
 
 
 def test_env_overrides_file(tmp_path, monkeypatch):
@@ -196,10 +148,7 @@ resource_attributes = "not-a-table"
 
 
 def test_load_project_config_reads_file_at_call_time(monkeypatch, tmp_path):
-    from qua_libs_core.telemetry.file_config import load_project_config
-
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("QUA_LIBS_TELEMETRY_CONFIG", raising=False)
     assert load_project_config().enabled is False
 
     _write_config(

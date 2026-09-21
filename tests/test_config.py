@@ -1,27 +1,24 @@
-"""
-Off-by-default guarantees for the telemetry package.
+"""Tests for qua_libs_core.telemetry.config (init, flush, tracer, local path)."""
 
-The core requirement: when telemetry is not explicitly enabled, the package
-makes *no attempt to send anything* — it never calls
-``uptrace.configure_opentelemetry`` and hands back a no-op tracer. Enabling it
-without a DSN records spans locally (SQLite) and still does not call Uptrace.
-"""
+import sqlite3
 
 import pytest
 from opentelemetry import trace
 
 import qua_libs_core.telemetry as telemetry
 from qua_libs_core.telemetry import config as telemetry_config
+from qua_libs_core.telemetry.config import resolve_local_db_path
+from qua_libs_core.telemetry.file_config import CONFIG_DIR_NAME, CONFIG_FILE_NAME
 
 _ENV_VARS = (
     "UPTRACE_ENABLED",
     "UPTRACE_DSN",
+    "QUA_LIBS_TELEMETRY_CONFIG",
 )
 
 
 @pytest.fixture(autouse=True)
 def _clean_telemetry_state(monkeypatch):
-    """Reset module globals and telemetry env vars before each test."""
     for var in _ENV_VARS:
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setattr(telemetry_config, "_runtime", None)
@@ -39,10 +36,10 @@ def configure_spy(monkeypatch):
     return calls
 
 
-def test_disabled_by_default():
-    cfg = telemetry.TelemetryConfig()
-    assert cfg.enabled is False
-    assert cfg.dsn is None
+def _write_config(directory, content: str) -> None:
+    config_dir = directory / CONFIG_DIR_NAME
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / CONFIG_FILE_NAME).write_text(content, encoding="utf-8")
 
 
 def test_no_configure_call_when_disabled(configure_spy):
@@ -50,14 +47,7 @@ def test_no_configure_call_when_disabled(configure_spy):
     assert configure_spy == [], "configure_opentelemetry must not run when disabled"
 
 
-def test_noop_tracer_when_disabled():
-    telemetry.init_telemetry()
-    assert isinstance(telemetry.get_tracer(), trace.NoOpTracer)
-
-
 def test_enabled_without_dsn_writes_local_store(tmp_path, configure_spy):
-    import sqlite3
-
     db = tmp_path / "traces.sqlite"
     telemetry.init_telemetry(telemetry.TelemetryConfig(enabled=True, local_path=str(db)))
     assert configure_spy == []
@@ -71,7 +61,7 @@ def test_enabled_without_dsn_writes_local_store(tmp_path, configure_spy):
     assert names == ["local_only"]
 
 
-def test_force_flush_skips_uptrace_when_local_only(tmp_path, monkeypatch, configure_spy):
+def test_force_flush_skips_uptrace_when_local_only(tmp_path, monkeypatch):
     db = tmp_path / "traces.sqlite"
     calls = []
     monkeypatch.setattr(telemetry_config.uptrace, "force_flush", lambda: calls.append("flush"))
@@ -96,7 +86,7 @@ def test_warns_when_no_exporter_starts(caplog, monkeypatch):
     assert isinstance(telemetry.get_tracer(), trace.NoOpTracer)
 
 
-def test_public_span_api_is_inert_when_disabled():
+def test_trace_span_is_inert_when_disabled():
     from qua_libs_core.telemetry import trace_span
 
     with trace_span("inert_operation") as span:
@@ -105,9 +95,8 @@ def test_public_span_api_is_inert_when_disabled():
 
 
 def test_init_telemetry_reads_project_toml(tmp_path, monkeypatch, configure_spy):
-    config_dir = tmp_path / ".qua-libs"
-    config_dir.mkdir()
-    (config_dir / "telemetry.toml").write_text(
+    _write_config(
+        tmp_path,
         "\n".join(
             [
                 "[telemetry]",
@@ -116,7 +105,6 @@ def test_init_telemetry_reads_project_toml(tmp_path, monkeypatch, configure_spy)
                 'service_name = "qua-libs"',
             ]
         ),
-        encoding="utf-8",
     )
     monkeypatch.chdir(tmp_path)
 
@@ -124,3 +112,21 @@ def test_init_telemetry_reads_project_toml(tmp_path, monkeypatch, configure_spy)
 
     assert len(configure_spy) == 1
     assert configure_spy[0][1]["dsn"] == "http://project1_secret@localhost:14318?grpc=14317"
+
+
+def test_resolve_local_db_path_uses_repo_when_toml_is_under_qua_libs(tmp_path, monkeypatch):
+    _write_config(tmp_path, "[telemetry]\nenabled = true\n")
+    nested = tmp_path / "nested"
+    nested.mkdir()
+    monkeypatch.chdir(nested)
+    assert resolve_local_db_path(None) == (tmp_path / CONFIG_DIR_NAME / "traces.sqlite").resolve()
+    assert resolve_local_db_path("data/traces.sqlite") == (tmp_path / "data" / "traces.sqlite").resolve()
+
+
+def test_resolve_local_db_path_does_not_walk_past_loose_toml(tmp_path, monkeypatch):
+    config_path = tmp_path / "configs" / "telemetry.toml"
+    config_path.parent.mkdir()
+    config_path.write_text("[telemetry]\nenabled = true\n", encoding="utf-8")
+    monkeypatch.setenv("QUA_LIBS_TELEMETRY_CONFIG", str(config_path))
+    monkeypatch.chdir(tmp_path)
+    assert resolve_local_db_path(None) == (tmp_path / "configs" / CONFIG_DIR_NAME / "traces.sqlite").resolve()

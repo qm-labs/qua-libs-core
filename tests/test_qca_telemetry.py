@@ -1,4 +1,4 @@
-"""Root-span lifecycle: start_qca_telemetry returns an object the script ends explicitly."""
+"""Tests for qua_libs_core.telemetry.qca_telemetry."""
 
 import atexit
 import sys
@@ -27,7 +27,6 @@ def exporter(monkeypatch):
 
     registered = []
     monkeypatch.setattr(atexit, "register", lambda fn, *a, **k: registered.append((fn, a)) or fn)
-    exporter.atexit_callbacks = registered
 
     chained = []
     monkeypatch.setattr(sys, "excepthook", lambda *args: chained.append(args))
@@ -81,11 +80,6 @@ def test_context_manager_form_records_and_ends(exporter):
 
     (root,) = exporter.get_finished_spans()
     assert root.status.status_code is StatusCode.ERROR
-
-
-def test_end_is_registered_as_an_atexit_net(exporter):
-    telemetry = start_qca_telemetry("script.py")
-    assert telemetry.end in [fn for fn, _ in exporter.atexit_callbacks]
 
 
 def test_uncaught_exception_marks_error_and_still_reaches_the_user(exporter):

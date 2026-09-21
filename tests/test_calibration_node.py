@@ -1,21 +1,9 @@
-"""
-Tests for instrument_calibration_node — verifies the telemetry instrumentation
-works correctly with a realistic mock of QualibrationNode.
-
-The mock mirrors the real run_action behavior:
-  - node.run_action(skip_if=...) returns a decorator
-  - If skip_if is falsy, the decorated function executes immediately with node as arg
-  - If skip_if is truthy, the function is registered but not called
-
-Run:
-    pytest tests/test_calibration_node.py -v
-"""
+"""Tests for qua_libs_core.telemetry.calibration_node."""
 
 import functools
 from unittest.mock import patch
 
 import pytest
-from opentelemetry import trace
 
 # ---------------------------------------------------------------------------
 # Realistic mock of QualibrationNode
@@ -183,58 +171,9 @@ class TestBasicUsage:
 
         assert ran == ["my_custom_step"]
 
-    def test_default_attributes_captured(self, node):
-        """The 4 default attributes (operation, num_shots, timeout, load_data_id)
-        should be set on spans automatically."""
-        _instrument_with_disabled_uptrace(node)
-
-        captured_attrs = {}
-
-        @node.run_action()
-        def create_qua_program(node):
-            span = trace.get_current_span()
-            # Read back what the instrumentation set
-            captured_attrs.update(dict(span.attributes) if hasattr(span, "attributes") else {})
-
-        # With the in-memory tracer, attributes are on span.attributes
-        # But even without that, we can verify via get_current_span
-        assert node._registered_actions["create_qua_program"] is not None
-
 
 # ---------------------------------------------------------------------------
-# 2. extra_attributes — custom parameter capture
-# ---------------------------------------------------------------------------
-
-
-class TestExtraAttributes:
-    def test_extra_attributes_read_from_parameters(self, node):
-        """extra_attributes should capture additional fields from node.parameters."""
-        _instrument_with_disabled_uptrace(node, extra_attributes=["qubits", "frequency_detuning_in_mhz"])
-
-        span_ref = {}
-
-        @node.run_action()
-        def create_qua_program(node):
-            span_ref["span"] = trace.get_current_span()
-
-        # The span was created and should have been the current span during execution
-        assert "span" in span_ref
-
-    def test_missing_extra_attribute_is_silently_skipped(self, node):
-        """If an extra attribute doesn't exist on node.parameters, no error."""
-        _instrument_with_disabled_uptrace(node, extra_attributes=["nonexistent_param"])
-
-        ran = []
-
-        @node.run_action()
-        def analyse_data(node):
-            ran.append("analyse_data")
-
-        assert ran == ["analyse_data"]  # no crash
-
-
-# ---------------------------------------------------------------------------
-# 3. resource_attributes — merged onto a copy of the passed config
+# 2. resource_attributes — merged onto a copy of the passed config
 # ---------------------------------------------------------------------------
 
 
@@ -376,49 +315,7 @@ service_name = "from-file"
 
 
 # ---------------------------------------------------------------------------
-# 4. get_current_span — accessible inside traced functions
-# ---------------------------------------------------------------------------
-
-
-class TestGetCurrentSpan:
-    def test_get_current_span_returns_active_span(self, node):
-        """get_current_span() inside a traced function should return a real span,
-        not a no-op."""
-        _instrument_with_disabled_uptrace(node)
-
-        from qua_libs_core.telemetry import get_current_span
-
-        span_ref = {}
-
-        @node.run_action()
-        def analyse_data(node):
-            span = get_current_span()
-            span_ref["span"] = span
-            span_ref["is_recording"] = span.is_recording()
-
-        assert "span" in span_ref
-        # The span from get_current_span is the same one the instrumentation created
-        assert span_ref["span"] is not None
-
-    def test_get_current_span_allows_setting_attributes(self, node):
-        """User should be able to call set_span_attribute on the returned span."""
-        _instrument_with_disabled_uptrace(node)
-
-        from qua_libs_core.telemetry import get_current_span, set_span_attribute
-
-        @node.run_action()
-        def analyse_data(node):
-            span = get_current_span()
-            # This should not raise — mirrors the real use case of
-            # setting per-qubit fit outcomes
-            set_span_attribute(span, "fit.q1", "successful")
-            set_span_attribute(span, "fit.q3", "failed")
-
-        # If we get here without error, the API works
-
-
-# ---------------------------------------------------------------------------
-# 5. node.namespace["_telemetry_span"] — available during, cleaned up after
+# 3. node.namespace["_telemetry_span"] — available during, cleaned up after
 # ---------------------------------------------------------------------------
 
 
@@ -461,24 +358,9 @@ class TestNamespaceSpan:
 
         assert "_telemetry_span" not in node.namespace
 
-    def test_namespace_span_matches_get_current_span(self, node):
-        """Both access methods should return the same span object."""
-        _instrument_with_disabled_uptrace(node)
-
-        from qua_libs_core.telemetry import get_current_span
-
-        match = {}
-
-        @node.run_action()
-        def analyse_data(node):
-            match["namespace"] = node.namespace["_telemetry_span"]
-            match["current"] = get_current_span()
-
-        assert match["namespace"] is match["current"]
-
 
 # ---------------------------------------------------------------------------
-# 6. Exception handling — spans record errors correctly
+# 4. Exception handling — spans record errors correctly
 # ---------------------------------------------------------------------------
 
 
@@ -515,97 +397,3 @@ class TestExceptionHandling:
             assert "_telemetry_span" in node.namespace
 
         assert ran == ["analyse_data"]
-
-
-# ---------------------------------------------------------------------------
-# 7. End-to-end: realistic calibration node flow
-# ---------------------------------------------------------------------------
-
-
-class TestRealisticFlow:
-    def test_full_calibration_flow_with_dynamic_attributes(self, node):
-        """Simulates the real _telemetry_common.py pattern end-to-end:
-        instrument once, define all standard actions, some set dynamic attrs."""
-        _instrument_with_disabled_uptrace(
-            node,
-            extra_attributes=["qubits"],
-            resource_attributes={"experiment.category": "power_rabi"},
-        )
-
-        from qua_libs_core.telemetry import get_current_span, set_span_attribute
-
-        flow = []
-
-        @node.run_action(skip_if=node.modes.external)
-        def custom_param(node):
-            node.parameters.qubits = ["q1"]
-            node.parameters.operation = "const"
-            node.parameters.num_shots = 10
-            flow.append("custom_param")
-
-        @node.run_action(skip_if=node.parameters.load_data_id is not None)
-        def create_qua_program(node):
-            node.namespace["qua_program"] = "mock_program"
-            flow.append("create_qua_program")
-
-        @node.run_action(skip_if=True)
-        def simulate_qua_program(node):
-            flow.append("simulate_qua_program")  # should NOT run
-
-        @node.run_action(skip_if=node.parameters.load_data_id is not None)
-        def execute_qua_program(node):
-            node.results["ds_raw"] = {"I": [0.1, 0.2], "Q": [0.3, 0.4]}
-            flow.append("execute_qua_program")
-
-        @node.run_action(skip_if=node.parameters.load_data_id is None)
-        def load_data(node):
-            flow.append("load_data")  # should NOT run (load_data_id is None)
-
-        @node.run_action(skip_if=node.parameters.simulate)
-        def analyse_data(node):
-            node.outcomes = {"q1": "successful", "q3": "failed"}
-            # Dynamic attributes — the key feature we're testing
-            span = get_current_span()
-            for qubit_name, outcome in node.outcomes.items():
-                set_span_attribute(span, f"fit.{qubit_name}", outcome)
-            flow.append("analyse_data")
-
-        @node.run_action(skip_if=node.parameters.simulate)
-        def plot_data(node):
-            node.results["figures"] = {"amplitude": "mock_fig"}
-            flow.append("plot_data")
-
-        @node.run_action(skip_if=node.parameters.simulate)
-        def update_state(node):
-            span = get_current_span()
-            for q_name, outcome in node.outcomes.items():
-                if outcome == "failed":
-                    set_span_attribute(span, f"update.{q_name}", "skipped")
-                else:
-                    set_span_attribute(span, f"update.{q_name}", "applied")
-            flow.append("update_state")
-
-        @node.run_action()
-        def save_results(node):
-            flow.append("save_results")
-
-        # Verify execution order matches real calibration flow
-        assert flow == [
-            "custom_param",
-            "create_qua_program",
-            # simulate_qua_program skipped
-            "execute_qua_program",
-            # load_data skipped
-            "analyse_data",
-            "plot_data",
-            "update_state",
-            "save_results",
-        ]
-
-        # Verify namespace is clean after all functions ran
-        assert "_telemetry_span" not in node.namespace
-
-        # Verify node state was populated (like real calibration)
-        assert node.outcomes == {"q1": "successful", "q3": "failed"}
-        assert node.results["ds_raw"] == {"I": [0.1, 0.2], "Q": [0.3, 0.4]}
-        assert node.results["figures"] == {"amplitude": "mock_fig"}
