@@ -9,7 +9,7 @@ Package version is defined once in:
 
 ```python
 # qua_libs_core/__init__.py
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 ```
 
 Use the helper script (updates [`qua_libs_core/__init__.py`](qua_libs_core/__init__.py) and [`tools/installer/installer.json`](../tools/installer/installer.json) → `release.qua_libs_core`):
@@ -65,7 +65,7 @@ The installer displays the tested combo from `installer.json`:
 
 ```json
 "release": {
-  "qua_libs_core": "0.2.0",
+  "qua_libs_core": "0.2.1",
   "qm_qua": "1.3.1"
 }
 ```

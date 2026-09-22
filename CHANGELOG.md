@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-22
+
+### Changed
+
+- Support Python 3.10–3.14 (`requires-python` is now `>=3.10,<3.15`). The installer offers 3.13 and 3.14 as well.
+
 ## [0.2.0] - 2026-09-22
 
 ### Added

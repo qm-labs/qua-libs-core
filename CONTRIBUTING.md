@@ -18,7 +18,7 @@ example, ask a question, or propose something to add.
 
 ## Development
 
-This repo uses [uv](https://docs.astral.sh/uv/) and targets Python 3.10–3.12
+This repo uses [uv](https://docs.astral.sh/uv/) and targets Python 3.10–3.14
 (uv will fetch a suitable interpreter). Create a local environment — installs
 the `qua_libs_core` package, dev tools, and (with `--extra tutorials`) the QUA
 SDK and plotting stack used by `Tutorials/`:
