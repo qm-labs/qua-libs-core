@@ -17,6 +17,7 @@ _ENV_VARS = (
     "QUA_LIBS_TELEMETRY_CONFIG",
 )
 
+
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
     for var in _ENV_VARS:

@@ -1,6 +1,6 @@
 """Root-span helper for linear QCA (Quantum-Control-Applications) scripts.
 
-Call :func:`start_qca_telemetry` once after ``save_data_dict`` is defined, 
+Call :func:`start_qca_telemetry` once after ``save_data_dict`` is defined,
 wrap the QM / fetch / fit calls with  :mod:`.qca_telemetry_wrappers`, and
 end the returned object on the last line::
 

@@ -66,7 +66,7 @@ def trace_qmm(qmm_or_cls: Any) -> Any:
 def trace_open_qm(open_qm: Callable[P, T]) -> Callable[P, T]:
     """Wrap ``qmm.open_qm``::
 
-        qm = trace_open_qm(qmm.open_qm)(config)
+    qm = trace_open_qm(qmm.open_qm)(config)
     """
     return _wrap_call(open_qm, "open_qm", attrs_fn=_open_qm_attrs)
 
@@ -74,7 +74,7 @@ def trace_open_qm(open_qm: Callable[P, T]) -> Callable[P, T]:
 def trace_execute(execute: Callable[P, T]) -> Callable[P, T]:
     """Wrap ``qm.execute``::
 
-        job = trace_execute(qm.execute)(qua_program)
+    job = trace_execute(qm.execute)(qua_program)
     """
     return _wrap_call(execute, "qm_execute")
 
@@ -82,7 +82,7 @@ def trace_execute(execute: Callable[P, T]) -> Callable[P, T]:
 def trace_simulate(simulate: Callable[P, T]) -> Callable[P, T]:
     """Wrap ``qmm.simulate``::
 
-        job = trace_simulate(qmm.simulate)(config, qua_program, simulation_config)
+    job = trace_simulate(qmm.simulate)(config, qua_program, simulation_config)
     """
     return _wrap_call(simulate, "qmm_simulate")
 
@@ -90,7 +90,7 @@ def trace_simulate(simulate: Callable[P, T]) -> Callable[P, T]:
 def trace_get_simulated_samples(get_simulated_samples: Callable[P, T]) -> Callable[P, T]:
     """Wrap ``job.get_simulated_samples``::
 
-        samples = trace_get_simulated_samples(job.get_simulated_samples)()
+    samples = trace_get_simulated_samples(job.get_simulated_samples)()
     """
     return _wrap_call(get_simulated_samples, "get_simulated_samples")
 
