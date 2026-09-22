@@ -2,11 +2,11 @@
 
 ## Telemetry
 
-- [Telemetry overview](telemetry/README.md)
-- [Configuration (TOML, env vars)](telemetry/CONFIGURATION.md)
-- [Installer + telemetry](telemetry/INSTALLER.md)
-- [Add telemetry to calibrations](telemetry/HOW_TO_ADD_TELEMETRY.md)
-- [Self-host Uptrace](telemetry/SELF_HOSTING.md)
+- [Overview](telemetry/README.md) — what is recorded, and how to read it
+- [Settings](telemetry/CONFIGURATION.md) — turn it on or off, choose where records go
+- [Installer](telemetry/INSTALLER.md) — what the installer sets up
+- [Recording your own scripts and calibrations](telemetry/HOW_TO_ADD_TELEMETRY.md)
+- [Browsing runs in a web interface](telemetry/SELF_HOSTING.md) — optional Uptrace server (needs Docker)
 
 ## Installer
 

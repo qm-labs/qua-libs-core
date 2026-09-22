@@ -6,6 +6,8 @@ Create this file at the repository root:
   ``<install>/.qua-libs/telemetry.toml``
 
 Discovery walks upward from the current working directory.
+``load_project_config()`` merges that file with ``UPTRACE_ENABLED`` /
+``UPTRACE_DSN`` env variables (env wins for those two fields).
 """
 
 import os

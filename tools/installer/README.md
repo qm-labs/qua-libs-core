@@ -26,7 +26,7 @@ python install.py --modality superconducting --dest . --telemetry --yes
 1. Clone the modality repository (git, or zip fallback)
 2. Create a Python virtual environment with `uv` and `uv sync`
 3. Run `qualibrate config` (calibration modalities)
-4. Optionally enable telemetry (local SQLite; Uptrace via Docker is extra)
+4. Optionally record runs to a local file (a local Uptrace server via Docker is extra)
 
 ## Compatibility
 

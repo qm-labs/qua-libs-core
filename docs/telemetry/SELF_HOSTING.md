@@ -1,47 +1,46 @@
-# Self-Hosting Uptrace (the default telemetry destination)
+# Browsing runs in a web interface (optional self-hosting Uptrace)
 
-`qua_libs_core.telemetry` is off by default. When you enable it, the **standard, recommended
-destination is a self-hosted Uptrace** — all telemetry stays on your own machine/network,
-nothing leaves the site. This is the right default for QM-managed systems and for air-gapped
-or privacy-sensitive installations. (Uptrace Cloud also works — it's just a different
-`UPTRACE_DSN` value; see the note at the end.)
+With telemetry on, your runs are recorded to a file on your machine and you can
+query that file directly. If you would rather browse them — search runs, compare
+durations, chart them over time — you can run **Uptrace**, an open-source web
+application, on the same machine or elsewhere in your network.
 
-**No code changes are needed.** Enable telemetry via `.qua-libs/telemetry.toml` or
-environment variables; the package passes the DSN to `uptrace.configure_opentelemetry`.
-See [CONFIGURATION.md](CONFIGURATION.md).
+This is entirely optional. It needs Docker, it does not replace the local file
+(runs keep going there too), and nothing leaves your network unless you choose to
+host it somewhere else.
 
-## Quick start (recommended): one command
+## Set it up
 
-This repo bundles a ready-to-run local Uptrace. You need Docker (Docker Engine on
-Linux, or Docker Desktop on Windows/macOS).
+You need Docker: Docker Engine on Linux, or Docker Desktop on Windows or macOS.
 
-Scripts are in `tools/installer/telemetry-self-host/` and [`self-hosting/`](./self-hosting/).
-
-From either directory:
-
-**Linux / macOS:**
+The setup scripts are in `tools/installer/telemetry-self-host/` and
+[`self-hosting/`](./self-hosting/). From either folder:
 
 ```bash
+# Linux / macOS
 bash setup_uptrace_local.sh
 ```
 
-**Windows (PowerShell):**
-
 ```powershell
+# Windows (PowerShell)
 .\setup_uptrace_local.ps1
 ```
 
 > If PowerShell refuses to run the script ("running scripts is disabled on this
-> system"), launch it as `powershell -ExecutionPolicy Bypass -File setup_uptrace_local.ps1`.
+> system"), start it as
+> `powershell -ExecutionPolicy Bypass -File setup_uptrace_local.ps1`.
 
-It checks for Docker, brings up the stack (ClickHouse + PostgreSQL + Redis + Uptrace),
-waits until it's healthy, and prints the DSN.
+The script starts Uptrace and its databases, waits until they are ready, and
+prints the address your runs should be sent to. Open
+**http://localhost:14318** and log in with `admin@example.com` / `admin`.
 
-When it finishes, open the UI at **http://localhost:14318** (login
-`admin@example.com` / `admin`). Then enable span export:
+The installer can do all of this during installation — check the box for **Also start local
+Uptrace (Docker)** if Docker is already installed.
 
-**Option A — project file (recommended):** create or edit
-`<repo>/.qua-libs/telemetry.toml`:
+## Point your runs at it
+
+Add the printed address to your settings file
+([CONFIGURATION.md](CONFIGURATION.md)):
 
 ```toml
 [telemetry]
@@ -49,28 +48,18 @@ enabled = true
 dsn = "http://project1_secret@localhost:14318?grpc=14317"
 ```
 
-**Option B — environment variables:**
-```bash
-# Linux / macOS
-export UPTRACE_ENABLED="true"
-export UPTRACE_DSN="http://project1_secret@localhost:14318?grpc=14317"
-```
+Uptrace calls that address a **DSN**: it is the server location plus the token
+that identifies your project. If the installer set Uptrace up for you, it is
+already in the file.
 
-```powershell
-# Windows (PowerShell)
-$env:UPTRACE_ENABLED = "true"
-$env:UPTRACE_DSN = "http://project1_secret@localhost:14318?grpc=14317"
-```
+Run a script, then open the UI and look at **Spans** — each row is one recorded
+step, and they appear within about ten seconds. Your local file keeps recording
+either way; removing `dsn` only stops the copy going to Uptrace.
 
-If you used the QUA Libraries installer with telemetry enabled, the TOML file is
-already written — start Uptrace and run instrumented code.
+## Stopping and starting
 
-Run an instrumented node or script, and spans appear under the project's **Spans** tab.
-
-### Stopping
-
-Stopping keeps your data by default (so spans survive a restart); add the wipe flag to
-also delete the ClickHouse + PostgreSQL volumes.
+Stopping keeps your data, so previous runs are still there when you start it
+again. Add the wipe flag to delete them.
 
 ```bash
 # Linux / macOS
@@ -84,30 +73,36 @@ bash stop_uptrace_local.sh --wipe  # stop and delete all data
 .\stop_uptrace_local.ps1 -Wipe     # stop and delete all data
 ```
 
-The sections below describe the **manual equivalent**, e.g. for a customised stack.
+Stopping the server does not turn telemetry off — runs are still recorded locally.
 
-## 1. Stand up a local Uptrace
+## If runs do not appear
 
-Uptrace ships a ready-to-run Docker Compose stack. You need Docker (Desktop, or `docker-ce`
-plus the compose plugin).
+- **Wrong port.** A self-hosted server uses `14317` and `14318`. The ports
+  `4317` / `4318` belong to the hosted Uptrace Cloud service and are the most
+  common cause of an empty UI.
+- **Telemetry is off.** Check `enabled = true` and that you restarted the script
+  or kernel afterwards.
+- **Your code runs in its own container.** `localhost` then means that container.
+  Use `host.docker.internal` in the address, or put your container on the same
+  Docker network as Uptrace.
+- **A port is already taken.** Change the host-side port in `docker-compose.yml`
+  (the number on the left of the colon).
+- **A service keeps restarting.** The database Uptrace uses wants memory; give
+  Docker at least 6 GB (Docker Desktop → Settings → Resources) and start it again.
+
+## Setting it up by hand
+
+The scripts above are enough for most people. If you want your own arrangement,
+Uptrace publishes a ready-made Docker setup:
 
 ```bash
 git clone https://github.com/uptrace/uptrace.git
 cd uptrace/example/docker
-docker compose up -d        # first run pulls ~2 GB of images
-docker compose ps           # every service should be running / healthy
+docker compose up -d        # the first run downloads about 2 GB of images
+docker compose ps           # everything should be running or healthy
 ```
 
-The stack includes ClickHouse (data store), PostgreSQL (metadata), Redis, the Uptrace UI +
-ingest, and an OpenTelemetry Collector. Open the UI at **http://localhost:14318** to confirm
-it is healthy end-to-end.
-
-> ClickHouse is memory-hungry. If a service is stuck `restarting`, give Docker ≥ 6 GB
-> (Docker Desktop → Settings → Resources) and bring the stack back up.
-
-## 2. Create a project and get your DSN
-
-Edit `uptrace.yml` in `example/docker` and set a project + token:
+Create a project and choose its token in `uptrace.yml`:
 
 ```yaml
 projects:
@@ -124,59 +119,20 @@ projects:
 docker compose restart uptrace
 ```
 
-Your **self-hosted DSN** is then:
+Your address is then `http://<your-token>@localhost:14318?grpc=14317`, which goes
+into `dsn` as above. Example secret token is `project1_secret`.
 
-```
-http://<your-token>@localhost:14318?grpc=14317
-```
+## Running it for the whole lab
 
-> **DSN format:** `http(s)://<token>@<host>:<http_port>?grpc=<grpc_port>`.
->
-> **The #1 gotcha:** self-hosted ingest ports are **14317 (gRPC)** and **14318 (HTTP)** —
-> *not* the cloud `4317` / `4318`. Most "no spans appear" problems are the wrong port.
+The same Docker setup runs on a shared machine (8 GB RAM or more, and an SSD —
+storing runs is disk-bound rather than CPU-bound). If you move it off your own
+computer:
 
-## 3. Point qua-libs telemetry at it
+- Put it behind a reverse proxy that terminates TLS, and change the address in
+  `dsn` to `https://`.
+- Set a retention limit on the database, otherwise the disk fills up over time.
+- Back up its data directories.
+- Update `dsn` on every machine that sends runs to it.
 
-No code change — enable span export and set the self-hosted DSN via
-[`.qua-libs/telemetry.toml`](CONFIGURATION.md) or environment variables:
-
-```toml
-[telemetry]
-enabled = true
-dsn = "http://<your-token>@localhost:14318?grpc=14317"
-```
-
-```bash
-export UPTRACE_ENABLED="true"
-export UPTRACE_DSN="http://<your-token>@localhost:14318?grpc=14317"
-```
-
-That DSN value is the *only* thing that differs between cloud and self-hosted.
-
-## 4. Verify
-
-Run any instrumented node/script with telemetry enabled, then in the Uptrace UI
-(http://localhost:14318) pick the project → **Spans**. Spans should appear within
-~10 seconds. Telemetry is off by default until `enabled = true` in TOML or
-`UPTRACE_ENABLED=true`.
-
-## Gotchas
-
-- **Wrong port** — `14317` for self-hosted gRPC, not `4317`.
-- **App runs in its own container** — `localhost` then refers to the container, not the host.
-  Use `host.docker.internal` in the DSN, or attach your app's container to the Uptrace compose
-  network.
-- **Port already in use** — change the host-side port mappings in `docker-compose.yml`
-  (left side is host, right side is container).
-
-## Moving to a real host (production)
-
-The same `docker-compose.yml` runs unchanged on a VM (≥ 8 GB RAM, fast SSD — ClickHouse's cost
-is I/O, not CPU). To promote it:
-
-- Put Uptrace behind a TLS-terminating reverse proxy and switch the client DSN scheme to
-  **`https://`**.
-- Set ClickHouse table **TTL** to your retention target — otherwise disk fills indefinitely.
-- Back up ClickHouse and PostgreSQL.
-- Recreate dashboards/alerts (they do not migrate from Cloud automatically).
-- Update every service's `UPTRACE_DSN` to point at the new host.
+Uptrace also offers a hosted service; using it is the same setup with a different
+address in `dsn`.

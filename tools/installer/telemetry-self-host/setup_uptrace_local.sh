@@ -4,7 +4,7 @@
 #
 # qua-libs telemetry is OFF BY DEFAULT. This script only stands up a local
 # Uptrace instance (ClickHouse + PostgreSQL + Redis + Uptrace, via Docker) so
-# you have somewhere to send spans when you DO turn telemetry on for debugging.
+# you can optionally send spans there (in addition to local SQLite).
 # It does not enable telemetry itself -- see the instructions printed at the end.
 #
 set -euo pipefail

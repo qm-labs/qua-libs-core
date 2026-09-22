@@ -1,20 +1,17 @@
 """
-Telemetry module for OpenTelemetry + Uptrace integration.
+OpenTelemetry for QUA Libraries: off by default, local SQLite when enabled,
+Uptrace only if a DSN is set.
 
-Example usage:
-    from qua_libs_core.telemetry import init_telemetry, trace_function, trace_span
+Typical QCA usage::
 
-    # Initialize once at application startup (reads .qua-libs/telemetry.toml)
-    init_telemetry()
+    from qua_libs_core.telemetry import start_qca_telemetry, trace_qmm
 
-    # Option 1: Use decorator for automatic instrumentation
-    @trace_function("my_function")
-    def my_function():
-        ...
+    telemetry = start_qca_telemetry(__file__)
+    qmm = trace_qmm(QuantumMachinesManager)(host=qop_ip)
+    telemetry.end()
 
-    # Option 2: Use context manager for manual spans
-    with trace_span("my_operation"):
-        ...
+Calibration nodes: ``instrument_calibration_node(node)``. Generic spans after
+init: ``trace_function`` / ``trace_span``. See ``docs/telemetry/``.
 """
 
 from .config import force_flush, get_tracer, init_telemetry

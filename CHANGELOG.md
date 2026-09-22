@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+### Added
+
+- Local SQLite span store (size-capped) when telemetry is enabled; Uptrace is optional when a DSN is set.
+- `start_qca_telemetry` and explicit `trace_*` wrappers; core tutorials are instrumented.
+- Installer: `--telemetry` writes local-only config; `--uptrace` starts Docker Uptrace and adds a DSN.
+
+### Changed
+
+- `TelemetryConfig()` is defaults only; `load_project_config()` merges toml and env.
+- Env overrides are only `UPTRACE_ENABLED`, `UPTRACE_DSN`, and `QUA_LIBS_TELEMETRY_CONFIG`.
+- `get_tracer()` takes no name/version arguments.
+
 ## [0.1.0] - 2026-07-21
 
 ### Added
