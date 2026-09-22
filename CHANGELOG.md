@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-22
+
 ### Added
 
 - Local SQLite span store (size-capped) when telemetry is enabled; Uptrace is optional when a DSN is set.
