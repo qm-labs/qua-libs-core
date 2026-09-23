@@ -42,9 +42,17 @@ off unless you turn it on; see the [telemetry documentation](docs/telemetry/READ
 
 ### QUA Libraries installer
 
-For a batteries-included modality setup (clone, virtual environment, QUAlibrate, and
-optionally run recording), use [`tools/installer/`](tools/installer/README.md).
-See the [installer telemetry notes](docs/telemetry/INSTALLER.md) for what it sets up.
+Download the graphical installer from the latest GitHub release:
+
+- **[Windows](https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-windows.zip)** — unzip and run `QUA-Libraries-Installer.exe`
+- **[Linux](https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-linux.zip)** — unzip and run `QUA-Libraries-Installer`
+
+Both zips are attached to each
+[GitHub release](https://github.com/qua-platform/qua-libs-core/releases).
+
+To run from source (any OS), or for CLI flags, see
+[`tools/installer/`](tools/installer/README.md). Telemetry setup is described in
+the [installer telemetry notes](docs/telemetry/INSTALLER.md).
 
 ## QUA libraries by platform
 

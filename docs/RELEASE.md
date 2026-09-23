@@ -54,10 +54,18 @@ Retry PyPI only: Actions → **Publish release to PyPI**, ref `v0.1.1`.
 |----------|----------|
 | PyPI wheel | `qua_libs_core` package + LICENSE metadata |
 | PyPI sdist | `qua_libs_core` source only |
-| GitHub release | Both build artifacts attached to the tag |
+| GitHub release | Wheel, sdist, `QUA-Libraries-Installer-windows.zip`, and `QUA-Libraries-Installer-linux.zip` |
+
+README download links:
+
+- `https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-windows.zip`
+- `https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-linux.zip`
+
+Keep those filenames if you change the zip step. The links only work after a
+**published** release that includes the zips (drafts are not visible as “latest”).
 
 Not published to PyPI: `Tutorials/`, `tools/installer/`, tests, docs. Users get
-those from the GitHub repository or the Windows installer build.
+those from the GitHub repository or the graphical installer zips.
 
 ## Installer alignment
 

@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-23
+
+### Added
+
+- Attach Windows and Linux `QUA-Libraries-Installer-*.zip` assets to GitHub releases and link them from the README.
+
 ## [0.2.1] - 2026-09-22
 
 ### Changed

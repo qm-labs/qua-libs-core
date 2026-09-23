@@ -4,6 +4,7 @@ Author: Tomer Feld - Quantum Machines
 Created: 26/06/2022
 """
 
+# %% setup
 import numpy as np
 from qm import QuantumMachinesManager
 from qm import SimulationConfig
@@ -17,13 +18,20 @@ from qua_libs_core.telemetry import (
     trace_qmm,
     trace_simulate,
 )
+import time
 
-qop_ip = None
+start_time = time.time()
+######################
+# Network parameters #
+######################
+qop_ip = "172.16.33.101"  # Write the QM router IP address
+cluster_name = "CS_1"  # Write your cluster_name if version >= QOP220
+qop_port = 11011  # Write the QOP port if version < QOP220
+
 telemetry = start_qca_telemetry(__file__, resource_attributes={"experiment.category": "tutorial"})
-qmm = trace_qmm(QuantumMachinesManager)(qop_ip)
+qmm = trace_qmm(QuantumMachinesManager)(host=qop_ip, port=qop_port, cluster_name=cluster_name)
 
-##
-# ## Example 1 - Basic simulation, No inputs
+# %% Example 1 - Basic simulation, No inputs
 
 with program() as prog1:
     a = declare(fixed)
@@ -57,8 +65,7 @@ res = simulated_job.result_handles
 c = res.c.fetch_all()
 print(c)  # prints a tuple of the value and timestamp
 
-##
-# ## Example 2:
+# %% Example 2
 
 with program() as prog2:
     d = declare(int)
@@ -92,8 +99,7 @@ samples.con1.plot(analog_ports={"1", "3"}, digital_ports={})
 # plt.xlabel("Time [ns]")
 # plt.ylabel("Signal [V]")
 
-##
-## Example 3 - Loopback inputs
+# %% Example 3 - Loopback inputs
 
 len_a = len(np.arange(0.1, 0.45, 0.1))  # for stream processing buffer size
 len_f = len(np.arange(50e6, 60e6, 1e6))  # for stream processing buffer size
@@ -146,8 +152,7 @@ plt.plot(I, Q, ".")
 plt.xlabel("I")
 plt.ylabel("Q")
 
-##
-## Example 4 - Multiple Controllers
+# %% Example 4 - Multiple Controllers
 
 from qualang_tools.simulator_tools import create_simulator_controller_connections
 
@@ -184,3 +189,8 @@ plt.plot(samples_con2, label="(con2, 1)")
 plt.legend()
 
 telemetry.end()
+
+# plt.show()
+
+end_time = time.time()
+print(f"Time taken: {end_time - start_time} seconds")

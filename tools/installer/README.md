@@ -5,7 +5,12 @@ dots, neutral atoms, trapped ions).
 
 ## Quick start
 
-**GUI (default):**
+**Pre-built (from the latest GitHub release):**
+
+- [Windows](https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-windows.zip) — unzip and run `QUA-Libraries-Installer.exe`
+- [Linux](https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-linux.zip) — unzip and run `QUA-Libraries-Installer`
+
+**GUI from source:**
 
 ```bash
 cd tools/installer
