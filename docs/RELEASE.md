@@ -21,7 +21,20 @@ uv run python scripts/bump_version.py 0.1.1
 When changing version, also update [`CHANGELOG.md`](../CHANGELOG.md) (release notes source), [`docs/COMPATIBILITY.md`](COMPATIBILITY.md), and
 [`tools/installer/installer.json`](../tools/installer/installer.json) → `release.qm_qua` if the tested SDK changed.
 
+## Branches
+
+| Branch | Role |
+|--------|------|
+| `develop` | Default integration branch. Feature PRs merge here. |
+| `main` | Released history only. Updated by merging `develop` when cutting a version. |
+
+Do not push commits directly to `main`. Do not rebase or force-push `main`.
+
 ## Release
+
+1. On `develop`, bump the version and related files (see *Version* above).
+2. Open a Pull Request **`develop` → `main`**. Merge it once CI is green (GitHub branch protection should require this).
+3. Tag the merge commit on **`main`**, not `develop`:
 
 ```bash
 uv sync

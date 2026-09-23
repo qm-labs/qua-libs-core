@@ -10,10 +10,12 @@ example, ask a question, or propose something to add.
 
 ## Contributing code
 
-1. Fork the repository and create a branch.
+Daily work lands on **`develop`**. `main` is updated only when cutting a release.
+
+1. Fork the repository (or use a clone) and create a branch from `develop`.
 2. Make your changes.
 3. Run the checks under *Development* below.
-4. Open a Pull Request back to the main repository.
+4. Open a Pull Request targeting **`develop`**.
 5. A maintainer reviews it and merges once it's ready. Ask for help at any step.
 
 ## Development
