@@ -1,11 +1,4 @@
-"""Tests for release helper scripts.
-
-These assert the *helpers* and that version sources agree with each other.
-They must not hardcode the current package version — that broke every bump.
-The tag-vs-version gate for a real release is the ``verify-version`` job in
-``.github/workflows/release_github.yaml``, which runs
-``scripts/check_release_version.py`` against ``GITHUB_REF_NAME``.
-"""
+"""Tests for release helper scripts."""
 
 from __future__ import annotations
 

@@ -33,7 +33,11 @@ Do not push commits directly to `main`. Do not rebase or force-push `main`.
 ## Release
 
 1. On `develop`, bump the version and related files (see *Version* above).
-2. Open a Pull Request **`develop` → `main`**. Merge it once CI is green (GitHub branch protection should require this).
+2. Open a Pull Request **`develop` → `main`**. Merge it once CI is green. The
+   `release-bump` job (PRs and pushes to `main` only) requires
+   `qua_libs_core.__version__` to be strictly greater than on current `main`,
+   `CHANGELOG.md` to differ, and a non-empty `## [x.y.z]` section for the new
+   version.
 3. Tag the merge commit on **`main`**, not `develop`:
 
 ```bash

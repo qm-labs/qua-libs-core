@@ -25,6 +25,21 @@ jobs:
       - name: Run pre-commit
         run: uv run pre-commit run --all-files
 
+  release-bump:
+    name: release-bump
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' && github.base_ref == 'main')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check version bump and changelog
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: python3 scripts/check_main_release_bump.py --base-sha "$BASE_SHA"
+
   test:
     name: test (${{ matrix.python }})
     runs-on: ubuntu-latest
