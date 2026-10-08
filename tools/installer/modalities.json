@@ -10,7 +10,7 @@
   "modalities": {
     "superconducting": {
       "label": "Superconducting transmons",
-      "repo": "JacobFastQM/qua-libs-superconducting",
+      "repo": "qua-platform/qua-libs-superconducting",
       "install_type": "calibration",
       "package_dir": "qualibration_graphs/superconducting",
       "workspace": true,

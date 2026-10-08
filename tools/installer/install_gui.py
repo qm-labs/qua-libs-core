@@ -760,14 +760,13 @@ class InstallerApp:
         self.telemetry_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
             checks,
-            text="Enable telemetry (local SQLite store)",
+            text="Enable telemetry (local)",
             style="Card.TCheckbutton",
             variable=self.telemetry_var,
             command=self._sync_uptrace_checkbox,
         ).pack(anchor="w", pady=3)
         tk.Label(
             checks,
-            text="Writes <install>/.qua-libs/telemetry.toml. Spans stay on disk; no Docker required.",
             bg=theme.surface,
             fg=theme.muted,
             font=self.fonts.get(9),
@@ -779,7 +778,7 @@ class InstallerApp:
         self.uptrace_var = tk.BooleanVar(value=False)
         self.uptrace_check = ttk.Checkbutton(
             checks,
-            text="Also start local Uptrace (Docker)",
+            text="Start local Uptrace Server (Docker Required)",
             style="Card.TCheckbutton",
             variable=self.uptrace_var,
             state="disabled",
@@ -798,11 +797,9 @@ class InstallerApp:
         tk.Label(
             qualibrate_row,
             text=(
-                "QUAlibrate stores one global config at ~/.qualibrate/config.toml (not per install). "
-                "That file tells QUAlibrate which repository, calibration library, and QUAM paths to use. "
-                "If it already exists— from a previous install or manual setup—the installer leaves it "
-                "unchanged so your current calibration project is not overwritten. Check this when you "
-                "want this install to become the active QUAlibrate project."
+                "QUAlibrate stores one global config at ~/.qualibrate/config.toml. "
+                "Check this when you want this install to become the active QUAlibrate project. "
+                "WARNING: This will overwrite the current calibration project."
             ),
             bg=theme.surface,
             fg=theme.muted,

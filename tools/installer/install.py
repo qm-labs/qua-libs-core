@@ -32,6 +32,23 @@ from install_options import InstallOptions, parse_args
 from process_utils import hidden_subprocess_kwargs
 from telemetry_setup import setup_telemetry, telemetry_config_path
 
+# Process exit codes. Distinct codes let a caller (CI, a support request, a
+# wrapper script) tell which stage failed without parsing the message text.
+EXIT_OK = 0
+EXIT_GENERIC = 1
+EXIT_CLONE_FAILED = 2
+EXIT_ENV_SETUP_FAILED = 3
+EXIT_QUALIBRATE_FAILED = 4
+EXIT_CANCELLED = 10
+
+
+class InstallError(RuntimeError):
+    """A user-facing installation failure with a specific exit code."""
+
+    def __init__(self, message: str, *, exit_code: int = EXIT_GENERIC) -> None:
+        super().__init__(message)
+        self.exit_code = exit_code
+
 
 @dataclass
 class InstallPlan:
@@ -259,9 +276,48 @@ def git_available() -> bool:
     return shutil.which("git") is not None
 
 
+def describe_git_clone_failure(url: str, exc: subprocess.CalledProcessError) -> str:
+    """Turn git's own clone error into a message that says what to do next."""
+    output = (exc.output or "").strip()
+    lower = output.lower()
+    if any(
+        phrase in lower
+        for phrase in (
+            "could not read username",
+            "terminal prompts disabled",
+            "authentication failed",
+            "invalid username or password",
+        )
+    ):
+        return (
+            f"Could not clone {url}: Git needs you to sign in to GitHub.\n\n"
+            "Open a terminal and run:\n"
+            f"  git clone {url}\n\n"
+            "Complete the sign-in GitHub opens in your browser, then run the installer again."
+        )
+    if "repository not found" in lower:
+        return (
+            f"Could not clone {url}: repository not found, or not accessible with your current "
+            "GitHub login.\n\n"
+            f"Sign in with an account that has access, then try again, or run:\n  git clone {url}"
+        )
+    if any(
+        phrase in lower
+        for phrase in ("could not resolve host", "failed to connect", "timed out", "network is unreachable")
+    ):
+        return f"Could not clone {url}: network error.\n\n{output or 'Check your internet connection and try again.'}"
+    if output:
+        tail = "\n".join(output.splitlines()[-10:])
+        return f"Could not clone {url} (git exited with code {exc.returncode}):\n{tail}"
+    return f"Could not clone {url} (git exited with code {exc.returncode})."
+
+
 def run_git_clone(url: str, dest: Path) -> None:
     logging.info("Cloning %s -> %s", url, dest)
-    subprocess.run(["git", "clone", url, str(dest)], check=True, **hidden_subprocess_kwargs())
+    try:
+        run_cmd(["git", "clone", url, str(dest)])
+    except subprocess.CalledProcessError as exc:
+        raise InstallError(describe_git_clone_failure(url, exc), exit_code=EXIT_CLONE_FAILED) from exc
 
 
 GIT_CLONE_CONFIG: dict[str, str] = {
@@ -290,11 +346,23 @@ def download_github_zip(modality: Modality, dest: Path) -> None:
         with urlopen(modality.zip_url, timeout=120) as response:
             payload = response.read()
     except URLError as exc:
-        raise RuntimeError(f"Failed to download {modality.zip_url}: {exc}") from exc
+        raise InstallError(
+            f"Could not download {modality.zip_url}: {exc.reason if hasattr(exc, 'reason') else exc}\n\n"
+            "If this repository is private, install git and clone it manually instead "
+            "(git can authenticate; this direct download cannot).",
+            exit_code=EXIT_CLONE_FAILED,
+        ) from exc
 
-    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
-        top_level = archive.namelist()[0].split("/")[0]
-        archive.extractall(dest.parent)
+    try:
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            top_level = archive.namelist()[0].split("/")[0]
+            archive.extractall(dest.parent)
+    except zipfile.BadZipFile as exc:
+        raise InstallError(
+            f"Downloaded archive from {modality.zip_url} is not a valid zip file "
+            "(the repository may be private and returned an error page instead).",
+            exit_code=EXIT_CLONE_FAILED,
+        ) from exc
 
     extracted = dest.parent / top_level
     if dest.exists():
@@ -320,7 +388,8 @@ def clone_or_update(plan: InstallPlan, options: InstallOptions) -> Path:
     if dest.exists():
         action = handle_existing_directory(dest, options)
         if action == "abort":
-            raise SystemExit("Installation cancelled.")
+            logging.info("Installation cancelled.")
+            raise SystemExit(EXIT_CANCELLED)
         if action == "skip":
             logging.info("Skipping clone; using existing directory %s", dest)
             configure_git_clone(dest)
@@ -358,18 +427,48 @@ def calibration_workdir(repo_root: Path, modality: Modality) -> Path:
     return package_path(repo_root, modality)
 
 
-def run_cmd(cmd: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
+def run_cmd(cmd: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> str:
+    """Run *cmd*, streaming its output to the log as it runs.
+
+    Returns the combined stdout/stderr. Raises ``subprocess.CalledProcessError``
+    (with ``.output`` set to that combined text) on a non-zero exit, so callers
+    can build a specific error message instead of a bare exit code.
+    """
     merged_env = os.environ.copy()
     if env:
         merged_env.update(env)
     logging.info("Running: %s", " ".join(cmd))
-    subprocess.run(
+    process = subprocess.Popen(
         cmd,
-        check=True,
         cwd=cwd,
         env=merged_env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
         **hidden_subprocess_kwargs(),
     )
+    lines: list[str] = []
+    assert process.stdout is not None
+    for raw_line in process.stdout:
+        line = raw_line.rstrip()
+        if line:
+            lines.append(line)
+            logging.info(line)
+    returncode = process.wait()
+    output = "\n".join(lines)
+    if returncode != 0:
+        raise subprocess.CalledProcessError(returncode, cmd, output=output)
+    return output
+
+
+def _format_called_process_error(exc: subprocess.CalledProcessError) -> str:
+    cmd = " ".join(exc.cmd) if isinstance(exc.cmd, (list, tuple)) else str(exc.cmd)
+    output = (exc.output or exc.stderr or "").strip()
+    if not output:
+        return f"Command failed (exit {exc.returncode}): {cmd}"
+    tail = "\n".join(output.splitlines()[-15:])
+    return f"Command failed (exit {exc.returncode}): {cmd}\n{tail}"
 
 
 def uv_asset_name() -> str:
@@ -399,8 +498,10 @@ def download_uv(settings: InstallerSettings) -> Path:
         with urlopen(url, timeout=120) as response:
             payload = response.read()
     except (URLError, OSError) as exc:
-        raise RuntimeError(
-            "Could not download uv automatically. Install uv manually: https://docs.astral.sh/uv/getting-started/installation/"
+        raise InstallError(
+            f"Could not download uv automatically ({exc}). "
+            "Install uv manually: https://docs.astral.sh/uv/getting-started/installation/",
+            exit_code=EXIT_ENV_SETUP_FAILED,
         ) from exc
 
     uv_name = "uv.exe" if sys.platform == "win32" else "uv"
@@ -438,7 +539,10 @@ def ensure_uv(options: InstallOptions, settings: InstallerSettings) -> Path:
     print("\nuv was not found (needed to create the Python environment).")
     if prompt_yes_no("Download uv automatically?", default=True):
         return download_uv(settings)
-    raise RuntimeError("uv is required. Install it manually: https://docs.astral.sh/uv/getting-started/installation/")
+    raise InstallError(
+        "uv is required. Install it manually: https://docs.astral.sh/uv/getting-started/installation/",
+        exit_code=EXIT_ENV_SETUP_FAILED,
+    )
 
 
 def ensure_python(uv: Path, python_version: str) -> None:
@@ -482,10 +586,17 @@ def setup_python_environment(
         logging.info("Skipping environment setup (--skip-env)")
         return workdir, sync_dir
 
-    uv = ensure_uv(options, settings)
-    ensure_python(uv, plan.python_version)
-    create_venv(uv, sync_dir, plan.python_version)
-    install_packages(uv, sync_dir, plan.modality)
+    try:
+        uv = ensure_uv(options, settings)
+        ensure_python(uv, plan.python_version)
+        create_venv(uv, sync_dir, plan.python_version)
+        install_packages(uv, sync_dir, plan.modality)
+    except InstallError:
+        raise
+    except subprocess.CalledProcessError as exc:
+        raise InstallError(_format_called_process_error(exc), exit_code=EXIT_ENV_SETUP_FAILED) from exc
+    except RuntimeError as exc:
+        raise InstallError(str(exc), exit_code=EXIT_ENV_SETUP_FAILED) from exc
     return workdir, sync_dir
 
 
@@ -508,7 +619,10 @@ def setup_qualibrate(
     """Run qualibrate config with project-relative defaults. Returns True if configured."""
     qualibrate = venv_executable(env_root_dir, "qualibrate")
     if not qualibrate.is_file():
-        raise RuntimeError(f"qualibrate not found in virtual environment: {qualibrate}")
+        raise InstallError(
+            f"qualibrate not found in virtual environment: {qualibrate}",
+            exit_code=EXIT_QUALIBRATE_FAILED,
+        )
 
     config_path = default_qualibrate_config_path()
     if config_path.is_file():
@@ -541,7 +655,10 @@ def setup_qualibrate(
         str(workdir / q.quam_state_path),
     ]
     logging.info("Configuring QUAlibrate for project %s", q.project)
-    run_cmd(cmd, cwd=workdir)
+    try:
+        run_cmd(cmd, cwd=workdir)
+    except subprocess.CalledProcessError as exc:
+        raise InstallError(_format_called_process_error(exc), exit_code=EXIT_QUALIBRATE_FAILED) from exc
     return True
 
 
@@ -712,15 +829,19 @@ def run_install(
                 telemetry_configured=telemetry_configured,
                 qm_qua_version=qm_qua_version,
             )
-        return 0, summary
+        return EXIT_OK, summary
+    except InstallError as exc:
+        logging.error("%s", exc)
+        return exc.exit_code, [str(exc)]
     except subprocess.CalledProcessError as exc:
-        logging.error("Command failed: %s", exc)
-        return exc.returncode or 1, [f"Command failed with exit code {exc.returncode or 1}"]
+        detail = _format_called_process_error(exc)
+        logging.error(detail)
+        return exc.returncode or EXIT_GENERIC, [detail]
     except (RuntimeError, SystemExit) as exc:
         if isinstance(exc, SystemExit):
             raise
         logging.error("%s", exc)
-        return 1, [str(exc)]
+        return EXIT_GENERIC, [str(exc)]
 
 
 def main(argv: list[str] | None = None) -> int:

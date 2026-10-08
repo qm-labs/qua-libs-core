@@ -7,4 +7,4 @@ SQLite store (Uptrace optional). Telemetry is off by default; see
     from qua_libs_core.telemetry import start_qca_telemetry, instrument_calibration_node
 """
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"

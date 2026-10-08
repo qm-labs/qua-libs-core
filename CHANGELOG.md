@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-08
+
+### Changed
+
+- Installer clones the superconducting modality from `qua-platform/qua-libs-superconducting`.
+- Installer failures report a stage-specific exit code and the failing command's output, including guidance when a git clone needs a GitHub sign-in.
+- The installer zip includes a README explaining the `_internal` folder.
+
 ## [0.3.1] - 2026-09-24
 
 ### Added

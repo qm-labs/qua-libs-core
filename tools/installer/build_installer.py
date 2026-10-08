@@ -134,6 +134,22 @@ def ensure_assets() -> None:
         raise RuntimeError(f"Missing installer assets: {joined}")
 
 
+def write_dist_readme(dist_dir: Path) -> None:
+    """Explain the PyInstaller `_internal` folder so it doesn't look like clutter/malware."""
+    exe_name = INSTALLER_EXE_NAME if sys.platform == "win32" else "QUA-Libraries-Installer"
+    (dist_dir / "README.txt").write_text(
+        "QUA Libraries Installer\n"
+        "========================\n\n"
+        f"Run {exe_name} to start the installer.\n\n"
+        "The _internal folder is standard PyInstaller output: it holds the bundled\n"
+        "Python runtime, libraries, and data this installer needs (including the\n"
+        "local Uptrace self-host scripts referenced by docs/telemetry/INSTALLER.md).\n"
+        "It is not optional and should stay next to the executable - don't move or\n"
+        "delete it separately.\n",
+        encoding="utf-8",
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build the QUA Libraries Installer executable.")
     parser.add_argument(
@@ -177,6 +193,7 @@ def main() -> int:
     )
 
     output_dir = DIST_DIR
+    write_dist_readme(output_dir)
     print(f"\nBuild complete: {output_dir}")
     if sys.platform == "win32":
         print(f"Run: {output_dir / 'QUA-Libraries-Installer.exe'}")

@@ -95,3 +95,14 @@ PyInstaller. Close any running `QUA-Libraries-Installer.exe` before rebuilding.
 ## Logs
 
 Install log: `~/.qua-libs/install.log`
+
+## Exit codes (CLI)
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Generic/unexpected failure |
+| 2 | Cloning or downloading the repository failed |
+| 3 | Python environment setup failed (uv, Python, venv, or package install) |
+| 4 | QUAlibrate configuration failed |
+| 10 | Cancelled by the user |

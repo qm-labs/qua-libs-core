@@ -169,7 +169,7 @@ def run_uptrace_setup(bundle_dir: Path) -> None:
     if not script.is_file():
         raise RuntimeError(f"Missing Uptrace setup script: {script}")
     logging.info("Starting local Uptrace via %s", script.name)
-    run_hidden_cmd(["bash", str(script)], cwd=bundle_dir)
+    run_hidden_cmd(["bash", str(script)], cwd=bundle_dir, capture_output=True, text=True)
 
 
 def _docker_compose_cmd(compose_file: Path) -> list[str]:
@@ -186,8 +186,8 @@ def _run_uptrace_setup_windows(compose_dir: Path, compose_file: Path) -> None:
         capture_output=True,
         text=True,
     )
-    run_hidden_cmd(base + ["pull"], cwd=compose_dir)
-    run_hidden_cmd(base + ["up", "-d"], cwd=compose_dir)
+    run_hidden_cmd(base + ["pull"], cwd=compose_dir, capture_output=True, text=True)
+    run_hidden_cmd(base + ["up", "-d"], cwd=compose_dir, capture_output=True, text=True)
 
     logging.info("Waiting for Uptrace to become ready ...")
     for attempt in range(90):
@@ -288,7 +288,12 @@ def setup_telemetry(
         try:
             run_uptrace_setup(bundle_dir)
         except subprocess.CalledProcessError as exc:
-            logging.error("Uptrace setup failed (exit %s); enabling local SQLite only", exc.returncode)
+            detail = (exc.stdout or exc.output or exc.stderr or "").strip()
+            logging.error(
+                "Uptrace setup failed (exit %s)%s; enabling local SQLite only",
+                exc.returncode,
+                f": {detail.splitlines()[-1]}" if detail else "",
+            )
             write_telemetry_config(repo_root, settings, include_dsn=False)
             return True
 
