@@ -73,17 +73,32 @@ See [docs/telemetry/INSTALLER.md](../../docs/telemetry/INSTALLER.md).
 
 Bundled scripts: `telemetry-self-host/`
 
-## Building the Windows `.exe`
+## Building locally (test a change without a release)
 
-Requirements: Python 3.12+, PyInstaller, Pillow.
+Build on the same operating system you want to test. A build on Linux produces
+the Linux installer, not `QUA-Libraries-Installer.exe`.
+
+Windows (PowerShell):
 
 ```powershell
 cd tools\installer
+py -3.12 -m pip install pyinstaller pillow
 py -3.12 build_installer.py
 ```
 
-The build script downloads `uv` into `bin/`, bundles `assets/`, and runs
-PyInstaller. Close any running `QUA-Libraries-Installer.exe` before rebuilding.
+Run `dist\QUA-Libraries-Installer\QUA-Libraries-Installer.exe`.
+
+Linux or WSL, from the repo root (`py` is the Windows launcher and is not on
+this shell):
+
+```bash
+uv run --with pyinstaller --with pillow python tools/installer/build_installer.py
+```
+
+Run `tools/installer/dist/QUA-Libraries-Installer/QUA-Libraries-Installer`.
+
+No tag, release, or version bump is involved. Rerun the same command after each
+change. Close a running installer before rebuilding.
 
 ## Configuration
 

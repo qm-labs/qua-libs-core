@@ -30,6 +30,12 @@ When changing version, also update [`CHANGELOG.md`](../CHANGELOG.md) (release no
 
 Do not push commits directly to `main`. Do not rebase or force-push `main`.
 
+## Testing an installer change
+
+Build it locally and run `dist/QUA-Libraries-Installer/` directly. See
+[`tools/installer/README.md`](../tools/installer/README.md#building-locally-test-a-change-without-a-release).
+No tag, release, or version bump needed.
+
 ## Release
 
 1. On `develop`, bump the version and related files (see *Version* above).

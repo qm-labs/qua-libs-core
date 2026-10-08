@@ -111,7 +111,8 @@ def test_configure_git_clone_sets_local_config_and_refreshes_checkout(installer_
         install.configure_git_clone(repo_root, refresh_checkout=True)
 
     expected_config_calls = [
-        call(["git", "-C", str(repo_root), "config", key, value]) for key, value in install.GIT_CLONE_CONFIG.items()
+        call(["git", "-C", str(repo_root), "config", "--replace-all", key, value])
+        for key, value in install.GIT_CLONE_CONFIG.items()
     ]
     assert run_cmd.call_args_list == expected_config_calls + [
         call(["git", "-C", str(repo_root), "reset", "--hard", "HEAD"])

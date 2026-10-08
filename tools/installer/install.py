@@ -353,8 +353,10 @@ def configure_git_clone(repo_root: Path, *, refresh_checkout: bool = False) -> N
         return
 
     logging.info("Configuring git line endings and file modes at %s", repo_root)
+    # git clone writes core.filemode itself, and -c adds a second copy. A plain
+    # `git config key value` then refuses to overwrite the duplicates.
     for key, value in GIT_CLONE_CONFIG.items():
-        run_cmd(["git", "-C", str(repo_root), "config", key, value])
+        run_cmd(["git", "-C", str(repo_root), "config", "--replace-all", key, value])
     if refresh_checkout:
         run_cmd(["git", "-C", str(repo_root), "reset", "--hard", "HEAD"])
 
@@ -584,9 +586,10 @@ def install_packages(uv: Path, sync_dir: Path, modality: Modality) -> None:
     if not (sync_dir / "pyproject.toml").is_file():
         raise RuntimeError(f"No pyproject.toml found in {sync_dir}")
 
-    cmd = [str(uv), "sync"]
-    if modality.install_type == "calibration":
-        cmd.append("--prerelease=allow")
+    # Install the committed uv.lock. Passing --prerelease=allow makes uv ignore
+    # that lockfile and resolve again, which fails when one requirement is the
+    # floating quam-builder git URL and another is quam-builder@v0.5.0.
+    cmd = [str(uv), "sync", "--frozen"]
     logging.info("Syncing Python environment from %s", sync_dir)
     run_cmd(cmd, cwd=sync_dir)
 
