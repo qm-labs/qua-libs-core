@@ -765,15 +765,6 @@ class InstallerApp:
             variable=self.telemetry_var,
             command=self._sync_uptrace_checkbox,
         ).pack(anchor="w", pady=3)
-        tk.Label(
-            checks,
-            bg=theme.surface,
-            fg=theme.muted,
-            font=self.fonts.get(9),
-            justify=tk.LEFT,
-            anchor="w",
-            wraplength=580,
-        ).pack(anchor="w", padx=(26, 0), pady=(0, 6))
 
         self.uptrace_var = tk.BooleanVar(value=False)
         self.uptrace_check = ttk.Checkbutton(

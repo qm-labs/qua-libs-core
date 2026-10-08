@@ -306,6 +306,12 @@ def describe_git_clone_failure(url: str, exc: subprocess.CalledProcessError) -> 
         for phrase in ("could not resolve host", "failed to connect", "timed out", "network is unreachable")
     ):
         return f"Could not clone {url}: network error.\n\n{output or 'Check your internet connection and try again.'}"
+    if "filename too long" in lower or "file name too long" in lower:
+        return (
+            f"Could not clone {url}: a path in this repository is longer than Windows allows.\n\n"
+            "Delete the incomplete folder and try again. If it still fails, enable long paths in "
+            "Windows (LongPathsEnabled) and rerun the installer."
+        )
     if output:
         tail = "\n".join(output.splitlines()[-10:])
         return f"Could not clone {url} (git exited with code {exc.returncode}):\n{tail}"
@@ -314,9 +320,21 @@ def describe_git_clone_failure(url: str, exc: subprocess.CalledProcessError) -> 
 
 def run_git_clone(url: str, dest: Path) -> None:
     logging.info("Cloning %s -> %s", url, dest)
+    # -c applies before checkout. core.longpaths must be set then, or Windows
+    # rejects QCA paths that are longer than MAX_PATH (260).
+    cmd = ["git", "clone"]
+    for key, value in GIT_CLONE_CONFIG.items():
+        cmd.extend(["-c", f"{key}={value}"])
+    cmd.extend([url, str(dest)])
     try:
-        run_cmd(["git", "clone", url, str(dest)])
+        run_cmd(cmd)
     except subprocess.CalledProcessError as exc:
+        if dest.exists():
+            logging.info("Removing incomplete clone at %s", dest)
+            try:
+                remove_path_robust(dest)
+            except RuntimeError:
+                logging.warning("Could not remove incomplete clone at %s", dest)
         raise InstallError(describe_git_clone_failure(url, exc), exit_code=EXIT_CLONE_FAILED) from exc
 
 
@@ -325,6 +343,7 @@ GIT_CLONE_CONFIG: dict[str, str] = {
     "core.eol": "lf",
     "core.filemode": "false",
     "core.safecrlf": "false",
+    "core.longpaths": "true",
 }
 
 
