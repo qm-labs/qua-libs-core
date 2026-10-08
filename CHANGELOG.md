@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-08
+
+### Fixed
+
+- Installer includes core.longpaths to handle long paths during clone.
+
+### Changed
+
+- Remove extra spacing on installer GUI.
+
 ## [0.4.0] - 2026-10-08
 
 ### Changed
