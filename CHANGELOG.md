@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-09
+
+### Fixed
+
+- Fix git filemode error.
+
+### Changed
+
+- Modify docs for building installer locally.
+
 ## [0.4.1] - 2026-10-08
 
 ### Fixed
