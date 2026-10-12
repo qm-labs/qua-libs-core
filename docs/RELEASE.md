@@ -39,13 +39,30 @@ No tag, release, or version bump needed.
 ## Release
 
 1. On `develop`, bump the version and related files (see *Version* above).
-2. Open a Pull Request **`develop` → `main`**. Merge it with **Rebase and merge**
-   once CI is green, so `main` stays a straight line. The
+2. Open a Pull Request **`develop` → `main`**, for CI and review. The
    `release-bump` job (PRs and pushes to `main` only) requires
    `qua_libs_core.__version__` to be strictly greater than on current `main`,
    `CHANGELOG.md` to differ, and a non-empty `## [x.y.z]` section for the new
    version.
-3. Tag the merge commit on **`main`**, not `develop`:
+3. Once CI is green, merge it yourself with a fast-forward instead of
+   GitHub's merge button. **Every** button option — Create a merge commit,
+   Squash and merge, even Rebase and merge — makes a *new* commit on `main`
+   with a different hash than the one on `develop`, even when the file
+   content ends up identical. That is what keeps splitting the branches
+   apart. A fast-forward moves `main` to literally the same commit, so
+   there is nothing left to diverge:
+
+   ```bash
+   git fetch origin
+   git checkout main
+   git merge --ff-only origin/develop
+   git push origin main
+   ```
+
+   GitHub closes the pull request on its own once it sees `main` contains
+   that commit. `main` and `develop` now point at the exact same commit —
+   do not rebase or re-sync `develop` afterward; there is nothing to do.
+4. Tag that commit on **`main`** (now the same commit as `develop`):
 
 ```bash
 uv sync

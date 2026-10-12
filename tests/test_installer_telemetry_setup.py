@@ -54,6 +54,18 @@ def test_write_telemetry_config_at_repo_root(installer_modules, repo_root):
     assert "dsn =" not in contents
 
 
+def test_write_telemetry_config_can_leave_telemetry_off(installer_modules, repo_root):
+    ts = installer_modules["telemetry_setup"]
+    settings = installer_modules["settings"]
+
+    path = ts.write_telemetry_config(repo_root, settings, enabled=False)
+    contents = path.read_text(encoding="utf-8")
+    assert "enabled = false" in contents
+    assert "enabled = true" not in contents
+    assert 'path = ".qua-libs/traces.sqlite"' in contents
+    assert "dsn =" not in contents
+
+
 def test_write_telemetry_config_includes_dsn_when_requested(installer_modules, repo_root):
     ts = installer_modules["telemetry_setup"]
     settings = installer_modules["settings"]

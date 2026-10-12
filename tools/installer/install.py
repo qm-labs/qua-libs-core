@@ -30,7 +30,7 @@ from urllib.request import urlopen
 from config import INSTALLER_DIR, InstallerSettings, Manifest, Modality, load_manifest
 from install_options import InstallOptions, parse_args
 from process_utils import hidden_subprocess_kwargs
-from telemetry_setup import setup_telemetry, telemetry_config_path
+from telemetry_setup import setup_telemetry, telemetry_config_path, write_telemetry_config
 
 # Process exit codes. Distinct codes let a caller (CI, a support request, a
 # wrapper script) tell which stage failed without parsing the message text.
@@ -759,7 +759,7 @@ def build_summary_lines(
         else:
             lines.append("Telemetry:    requested but setup did not complete (see log)")
     else:
-        lines.append("Telemetry:    no")
+        lines.append(f"Telemetry:    off ({telemetry_config_path(repo_root)})")
     if plan.modality.qualibrate_setup:
         if qualibrate_configured:
             lines.append(f"QUAlibrate:   configured ({default_qualibrate_config_path()})")
@@ -824,9 +824,11 @@ def run_install(
         if plan.modality.qualibrate_setup and not options.skip_env and not options.skip_qualibrate:
             qualibrate_configured = setup_qualibrate(workdir, env_root_dir, manifest.settings, options)
 
-        telemetry_configured = False
         if plan.enable_telemetry:
             telemetry_configured = setup_telemetry(repo_root, manifest.settings, options)
+        else:
+            write_telemetry_config(repo_root, manifest.settings, enabled=False)
+            telemetry_configured = True
 
         summary = build_summary_lines(
             plan,

@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [0.4.3] - 2026-10-12
+
+### Changed
+
+- Installer always writes `.qua-libs/telemetry.toml`, with `enabled = false` when telemetry is not selected, instead of skipping the file.
+- Release process: promote `develop` to `main` with a local fast-forward merge instead of GitHub's merge button, so `main` and `develop` stay on the same commit.
+
 ## [0.4.2] - 2026-10-09
 
 ### Fixed

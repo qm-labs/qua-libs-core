@@ -203,6 +203,7 @@ def write_telemetry_config(
     repo_root: Path,
     settings: InstallerSettings,
     *,
+    enabled: bool = True,
     include_dsn: bool = False,
 ) -> Path:
     """Write ``.qua-libs/telemetry.toml``. DSN is only included when Uptrace was set up."""
@@ -213,7 +214,7 @@ def write_telemetry_config(
 
     lines = [
         "[telemetry]",
-        "enabled = true",
+        f"enabled = {'true' if enabled else 'false'}",
         f'service_name = "{telemetry.service_name}"',
         f'deployment_environment = "{telemetry.deployment_environment}"',
     ]

@@ -5,10 +5,13 @@ Telemetry is optional and the box is unticked by default.
 
 ## What the installer does
 
-If you tick **Enable telemetry (local SQLite store)**, it writes a settings file
-at `<your-install>/.qua-libs/telemetry.toml` that turns recording on and points it
-at `<your-install>/.qua-libs/traces.sqlite`. Nothing else is needed — no Docker,
-and nothing leaves your machine.
+Every install writes `<your-install>/.qua-libs/telemetry.toml` and points it at
+`<your-install>/.qua-libs/traces.sqlite`. The box is unticked by default, so the
+file is written with `enabled = false` and nothing is recorded.
+
+If you tick **Enable telemetry (local SQLite store)**, that same file is written
+with `enabled = true`. Nothing else is needed — no Docker, and nothing leaves
+your machine.
 
 If you also tick **Also start local Uptrace (Docker)**, it starts a local Uptrace
 server so you can browse your runs in a browser, waits until

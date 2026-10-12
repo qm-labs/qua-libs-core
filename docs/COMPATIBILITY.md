@@ -5,6 +5,7 @@ planning an install or validating your environment.
 
 | qua-libs-core | qm-qua | Python | Notes |
 |---------------|--------|--------|-------|
+| 0.4.3 | 1.3.1 | 3.10–3.14 | Installer always writes telemetry.toml (enabled or not). |
 | 0.4.0 | 1.3.1 | 3.10–3.14 | Installer reports stage-specific errors. Fix superconducting git repo path. |
 | 0.3.0 | 1.3.1 | 3.10–3.14 | Installer artifact included in release. |
 | 0.2.1 | 1.3.1 | 3.10–3.14 | Package metadata allows 3.13 and 3.14. Installer default remains 3.12. |
