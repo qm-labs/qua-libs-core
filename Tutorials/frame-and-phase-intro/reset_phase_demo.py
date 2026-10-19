@@ -12,10 +12,17 @@ from qm.qua import *
 from qm import SimulationConfig
 import numpy as np
 from configuration import *
+from qua_libs_core.telemetry import (
+    start_qca_telemetry,
+    trace_get_simulated_samples,
+    trace_qmm,
+    trace_simulate,
+)
 from scipy.optimize import leastsq
 
 qop_ip = None
-qmm = QuantumMachinesManager(host=qop_ip)
+telemetry = start_qca_telemetry(__file__, resource_attributes={"experiment.category": "tutorial"})
+qmm = trace_qmm(QuantumMachinesManager)(host=qop_ip)
 
 # Create a quantum machine based on the configuration.
 
@@ -52,8 +59,8 @@ with program() as reset_both_ph_and_rotate:
     play("const", "qubit")
 
 # Simulate 1st program
-job = qmm.simulate(config, no_reset_ph, SimulationConfig(int(800)))
-samples = job.get_simulated_samples()
+job = trace_simulate(qmm.simulate)(config, no_reset_ph, SimulationConfig(int(800)))
+samples = trace_get_simulated_samples(job.get_simulated_samples)()
 
 # This creates the reference sin wave according to the 1st pulse. It is made in this manner because the exact timing
 # can change between versions, but this method will maintain compatibility.
@@ -77,8 +84,8 @@ plt.legend(("Reference", "Output"))
 plt.title("Pulse - 200ns - Pulse. 1st pulse is arbitrary, 2nd pulse has same phase")
 
 # Simulate 2nd program
-job = qmm.simulate(config, reset_ph, SimulationConfig(int(800)))
-samples = job.get_simulated_samples()
+job = trace_simulate(qmm.simulate)(config, reset_ph, SimulationConfig(int(800)))
+samples = trace_get_simulated_samples(job.get_simulated_samples)()
 plt.subplot(412, sharex=ax1)
 plt.plot(t_ref, ref_sin, "r")
 plt.plot(
@@ -90,8 +97,8 @@ plt.legend(("Reference", "Output"))
 plt.title("Pulse - 200ns - Phase Reset - Pulse. 1st pulse is arbitrary. 2nd pulse is cosine")
 
 # Simulate 3rd program
-job = qmm.simulate(config, reset_ph_and_rotate, SimulationConfig(int(800)))
-samples = job.get_simulated_samples()
+job = trace_simulate(qmm.simulate)(config, reset_ph_and_rotate, SimulationConfig(int(800)))
+samples = trace_get_simulated_samples(job.get_simulated_samples)()
 plt.subplot(413, sharex=ax1)
 plt.plot(t_ref, ref_sin, "r")
 plt.plot(
@@ -103,8 +110,8 @@ plt.legend(("Reference", "Output"))
 plt.title("Pulse - 200ns - Phase Reset - Rotate - Pulse. 1st pulse is arbitrary. 2nd pulse is sine")
 
 # Simulate 4rd program
-job = qmm.simulate(config, reset_both_ph_and_rotate, SimulationConfig(int(800)))
-samples = job.get_simulated_samples()
+job = trace_simulate(qmm.simulate)(config, reset_both_ph_and_rotate, SimulationConfig(int(800)))
+samples = trace_get_simulated_samples(job.get_simulated_samples)()
 plt.subplot(414, sharex=ax1)
 plt.plot(t_ref, ref_sin, "r")
 plt.plot(
@@ -118,3 +125,5 @@ plt.title("Reset - Pulse - 200ns - Phase Reset - Rotate - Pulse. 1st Pulse is co
 plt.xlabel("time [ns]")
 plt.tight_layout()
 plt.show()
+
+telemetry.end()

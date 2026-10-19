@@ -10,11 +10,13 @@ from qm import QuantumMachinesManager
 from qm.qua import *
 from qm import SimulationConfig, LoopbackInterface
 from configuration import *
+from qua_libs_core.telemetry import start_qca_telemetry, trace_qmm, trace_simulate
 import matplotlib.pyplot as plt
 
 # Open communication with the server.
 qop_ip = None
-qmm = QuantumMachinesManager(host=qop_ip)
+telemetry = start_qca_telemetry(__file__, resource_attributes={"experiment.category": "tutorial"})
+qmm = trace_qmm(QuantumMachinesManager)(host=qop_ip)
 
 # Sliced demodulation parameters
 num_segments = 25
@@ -65,7 +67,7 @@ with program() as measureProg:
         mov_int_stream.save_all("demod_mov")
         raw_adc.input1().save("raw_input")
 
-job = qmm.simulate(
+job = trace_simulate(qmm.simulate)(
     config,
     measureProg,
     SimulationConfig(4000, simulation_interface=LoopbackInterface([("con1", 1, "con1", 1)])),
@@ -96,3 +98,5 @@ plt.figure()
 plt.plot(res.demod_mov.fetch_all()["value"] / 2**12, "o-")
 plt.xlabel("sample number")
 plt.title("moving windows")
+
+telemetry.end()

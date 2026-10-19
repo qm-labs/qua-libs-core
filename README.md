@@ -36,15 +36,23 @@ cd qua-libs-core
 uv sync --extra tutorials
 ```
 
-Documentation for telemetry is seen in
-[`qua_libs_core.telemetry`](docs/telemetry/README.md).
+`qua_libs_core.telemetry` can keep a record of your runs — which script ran, how
+long each step took, and whether it worked — in a file on your own machine. It is
+off unless you turn it on; see the [telemetry documentation](docs/telemetry/README.md).
 
 ### QUA Libraries installer
 
-For a batteries-included modality setup (clone, virtualenv, QUAlibrate, optional
-local Uptrace), use [`tools/installer/`](tools/installer/README.md).
-See [telemetry installer docs](docs/telemetry/INSTALLER.md) for Docker and config
-file behavior.
+Download the graphical installer from the latest GitHub release:
+
+- **[Windows](https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-windows.zip)** — unzip and run `QUA-Libraries-Installer.exe`
+- **[Linux](https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-linux.zip)** — unzip and run `QUA-Libraries-Installer`
+
+Both zips are attached to each
+[GitHub release](https://github.com/qua-platform/qua-libs-core/releases).
+
+To run from source (any OS), or for CLI flags, see
+[`tools/installer/`](tools/installer/README.md). Telemetry setup is described in
+the [installer telemetry notes](docs/telemetry/INSTALLER.md).
 
 ## QUA libraries by platform
 

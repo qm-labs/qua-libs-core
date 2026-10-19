@@ -58,10 +58,25 @@ only-include = ["qua_libs_core"]
 packages = ["qua_libs_core"]
 
 [dependency-groups]
-dev = ["black>=24.3,<25", "ruff>=0.6,<1", "pytest>=8.0", "pre-commit>=4.0"]
+dev = ["black>=24.3,<25", "ruff>=0.6,<1", "pytest>=8.0", "pre-commit>=4.0", "mypy>=1.11,<3"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "qua141_migration/tests"]
+
+[tool.mypy]
+# Run from the repo root so modules resolve as qua_libs_core.telemetry.*, not as
+# top-level files: uv run --group dev mypy qua_libs_core
+files = ["qua_libs_core"]
+python_version = "3.10"
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+# uptrace ships no py.typed marker, so its public API is untyped through no fault
+# of ours. tomli is a python<3.11 conditional dependency, so it is absent from a
+# 3.11+ dev environment even though python_version=3.10 makes mypy check the
+# branch that imports it. Scoped per-module rather than a global ignore.
+module = ["uptrace", "tomli"]
+ignore_missing_imports = true
 
 [tool.black]
 line-length = 120

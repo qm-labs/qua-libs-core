@@ -4,7 +4,7 @@
 #
 # qua-libs telemetry is OFF BY DEFAULT. This script only stands up a local
 # Uptrace instance (ClickHouse + PostgreSQL + Redis + Uptrace, via Docker) so
-# you have somewhere to send spans when you DO turn telemetry on for debugging.
+# you can optionally send spans there (in addition to local SQLite).
 # It does not enable telemetry itself -- see the instructions printed at the end.
 #
 set -euo pipefail
@@ -89,15 +89,17 @@ echo "  UI:    http://localhost:14318   (login: admin@example.com / admin)"
 echo "  gRPC:  localhost:14317"
 echo "  HTTP:  localhost:14318"
 echo ""
-echo "  Telemetry is OFF BY DEFAULT. To send qua-libs spans to this local"
-echo "  Uptrace, enable it in <install>/.qua-libs/telemetry.toml or your shell:"
+echo "  Telemetry in the installer writes .qua-libs/telemetry.toml with enabled=true"
+echo "  and a local SQLite store. Add a DSN to also send spans here:"
 echo ""
-echo "    # telemetry.toml (recommended)"
 echo "    [telemetry]"
 echo "    enabled = true"
 echo "    dsn = \"${DSN}\""
 echo ""
-echo "    # bash / zsh"
+echo "    [telemetry.local]"
+echo "    path = \".qua-libs/traces.sqlite\""
+echo ""
+echo "    # optional env override"
 echo "    export UPTRACE_DSN=\"${DSN}\""
 echo "    export UPTRACE_ENABLED=\"true\""
 echo ""

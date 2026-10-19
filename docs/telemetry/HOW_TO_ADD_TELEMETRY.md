@@ -1,222 +1,156 @@
-# How to Add Telemetry to a Calibration File
+# How to add telemetry
 
-This guide explains how to enable telemetry (experiment tracing via Uptrace) for any
-calibration node. No prior knowledge of OpenTelemetry is required.
+The tutorials in this repository already record their runs once telemetry is on.
+This page is for adding the same thing to a script or node of your own.
 
----
+First make sure telemetry is switched on, otherwise nothing is stored:
+[CONFIGURATION.md](CONFIGURATION.md). The lines below are safe to leave in your
+code either way — with telemetry off they do nothing.
 
-## What is telemetry?
+## A measurement script
 
-Telemetry automatically records what each calibration step does — how long it took, what
-parameters were used, and whether it succeeded or failed. When enabled, the data is sent to
-**Uptrace** (cloud or self-hosted), where you can visualize and monitor your experiments.
+Add two things: one line near the top of the measurement, after your parameters
+are defined, and one on the last line. In between, mark the calls you want timed
+by wrapping them where you call them.
 
-> **Telemetry is OFF by default.** Adding the two lines below to a calibration file is safe and
-> inert until you explicitly turn telemetry on (see *Turning telemetry on*). When off, nothing
-> is configured, contacted, or sent.
+```python
+from qua_libs_core.telemetry import (
+    start_qca_telemetry,
+    trace_execute,
+    trace_fetching,
+    trace_fit,
+    trace_open_qm,
+    trace_qmm,
+)
 
----
+telemetry = start_qca_telemetry(__file__, params=save_data_dict)
 
-## Prerequisites
-
-- The `qua_libs_core.telemetry` package ships with `qua-libs-core`, which the calibration
-  repos depend on. Nothing to copy or vendor.
-
----
-
-## Step-by-step guide
-
-### Step 1 — Find the calibration file you want to instrument
-
-For superconducting, calibration files live under:
+qmm = trace_qmm(QuantumMachinesManager)(host=qop_ip, cluster_name=cluster_name)
+qm = trace_open_qm(qmm.open_qm)(config)
+job = trace_execute(qm.execute)(qua_program)
+results = trace_fetching(fetching_tool)(job, data_list=["I", "Q", "iteration"], mode="live")
+...
+fit = trace_fit(Fit())
+...
+telemetry.end()
 ```
+
+`start_qca_telemetry(__file__, params=save_data_dict)` names the run after your
+file and records your parameters. Pass `save_data_dict` (or any dictionary of
+parameters) **before** results are added to it, so only the settings are picked
+up — measurement arrays and figures are skipped in any case.
+
+`telemetry.end()` finishes the run and writes it out. If your script raises an
+error or you stop it with Ctrl-C, the run is still written, marked as failed or
+interrupted.
+
+### Calls you can wrap
+
+| Wrapper | Use it on |
+|---------|-----------|
+| `trace_qmm` | `QuantumMachinesManager(...)` — times the connection |
+| `trace_open_qm` | `qmm.open_qm` |
+| `trace_execute` | `qm.execute` |
+| `trace_simulate` | `qmm.simulate` |
+| `trace_get_simulated_samples` | `job.get_simulated_samples` |
+| `trace_fetching` | `fetching_tool` — one entry for the whole fetching phase |
+| `trace_fit` | a `Fit()` object — times each fit it performs |
+| `traced_call` | any other call: `traced_call("my_step", my_function, arg1, arg2)` |
+
+Calls you do not wrap still run normally; they are simply counted as part of the
+overall run rather than timed on their own.
+
+## A calibration node
+
+One line, placed right after the node is created and before your `@node.run_action`
+functions:
+
+```python
+from qualibrate import QualibrationNode
+from quam_config import Quam
+from calibration_utils.T1 import Parameters, ...
+
+from qua_libs_core.telemetry import instrument_calibration_node
+
+node = QualibrationNode[Parameters, Quam](
+    name="25_T1",
+    description=description,
+    parameters=Parameters(),
+)
+
+instrument_calibration_node(node)
+
+@node.run_action(skip_if=node.modes.external)
+def custom_param(node):
+    ...
+```
+
+Each standard step of the node is then timed on its own: `custom_param`,
+`create_qua_program`, `simulate_qua_program`, `execute_qua_program`, `load_data`,
+`analyse_data`, `plot_data`, `update_state`, and `save_results`. The node name and
+the `operation`, `num_shots`, `timeout` and `load_data_id` parameters are recorded
+with them.
+
+In the QUA Libraries repositories these files live under, for example:
+
+```text
 qualibration_graphs/superconducting/calibrations/1Q_calibrations/
 qualibration_graphs/superconducting/calibrations/CZ_calibrations/
 ```
 
-For example: `25_T1.py`
+## Recording more detail
 
-### Step 2 — Add 2 things to the file
-
-#### Addition 1 — At the top of the file, after the existing imports, add:
-
-```python
-from qua_libs_core.telemetry import instrument_calibration_node
-```
-
-#### Addition 2 — Right after the `node = QualibrationNode[...]( ... )` line, add:
-
-```python
-instrument_calibration_node(node)
-```
-
----
-
-### What it looks like (before vs after)
-
-**Before:**
-```python
-from qualibrate import QualibrationNode
-from quam_config import Quam
-from calibration_utils.T1 import Parameters, ...
-
-node = QualibrationNode[Parameters, Quam](
-    name="25_T1",
-    description=description,
-    parameters=Parameters(),
-)
-
-@node.run_action(skip_if=node.modes.external)
-def custom_param(node):
-    ...
-```
-
-**After:**
-```python
-from qualibrate import QualibrationNode
-from quam_config import Quam
-from calibration_utils.T1 import Parameters, ...
-
-from qua_libs_core.telemetry import instrument_calibration_node          # ← ADD THIS
-
-node = QualibrationNode[Parameters, Quam](
-    name="25_T1",
-    description=description,
-    parameters=Parameters(),
-)
-
-instrument_calibration_node(node)                          # ← ADD THIS
-
-@node.run_action(skip_if=node.modes.external)
-def custom_param(node):
-    ...
-```
-
-> That's all. Nothing else in the file needs to change, and the file behaves exactly as before
-> until telemetry is turned on.
-
----
-
-## Turning telemetry on
-
-Telemetry is off by default. Choose **one** of the following.
-
-### Option A — Project config file (recommended)
-
-Create `.qua-libs/telemetry.toml` at the **repository root** (e.g.
-`<install>/.qua-libs/telemetry.toml`). The QUA Libraries installer writes this file
-when you opt in to telemetry. See [CONFIGURATION.md](CONFIGURATION.md).
-
-```toml
-[telemetry]
-enabled = true
-dsn = "http://project1_secret@localhost:14318?grpc=14317"   # local self-hosted Uptrace
-service_name = "your-system-name"
-deployment_environment = "local"
-```
-
-All calibration files under the repo pick up the change automatically. Environment
-variables still override the file for temporary changes.
-
-### Option B — Environment variables (no files)
-
-The default destination is a **self-hosted local Uptrace**. Stand one up with
-`setup_uptrace_local.sh` (see [SELF_HOSTING.md](SELF_HOSTING.md)), then:
-
-```bash
-export UPTRACE_ENABLED="true"
-export UPTRACE_DSN="http://project1_secret@localhost:14318?grpc=14317"   # local self-hosted
-```
-
-To use Uptrace Cloud instead, point `UPTRACE_DSN` at your cloud DSN — same code, just a
-different value. (Self-hosted ingest uses ports `14317`/`14318`, not the cloud `4317`/`4318`.)
-
-> If telemetry is enabled but no DSN is provided, it logs a warning and stays disabled — it will
-> never crash a calibration run.
-
----
-
-## What gets traced automatically?
-
-When telemetry is on, the following calibration steps are automatically wrapped with spans:
-
-| Function | What is recorded |
-|---|---|
-| `custom_param` | node name, operation, num_shots |
-| `create_qua_program` | node name, operation, num_shots |
-| `simulate_qua_program` | node name |
-| `execute_qua_program` | node name, num_shots, timeout |
-| `load_data` | node name, load_data_id |
-| `analyse_data` | node name |
-| `plot_data` | node name |
-| `update_state` | node name |
-| `save_results` | node name — also flushes all data to Uptrace |
-
----
-
-## Quick checklist
-
-- [ ] Added `from qua_libs_core.telemetry import instrument_calibration_node` at the top
-- [ ] Added `instrument_calibration_node(node)` right after node creation
-- [ ] To see data: ensure `.qua-libs/telemetry.toml` has `enabled = true` (or set env vars) and Uptrace is running
-- [ ] Ran the file and checked Uptrace for spans
-
----
-
-## Advanced usage
-
-The basic `instrument_calibration_node(node)` call covers most needs. The features below are
-opt-in for when you need more control.
-
-### Capturing extra node parameters as span attributes
-
-By default, only `operation`, `num_shots`, `timeout`, and `load_data_id` are recorded. To
-capture additional parameters:
+**More of your node's parameters:**
 
 ```python
 instrument_calibration_node(node, extra_attributes=["qubits", "frequency_detuning_in_mhz"])
 ```
 
-Any attribute name listed here will be read from `node.parameters` (if present) and attached to
-every span.
-
-### Resource-level attributes (auto + custom)
-
-Two resource attributes are **automatically set** on every call:
-
-| Attribute | Value |
-|---|---|
-| `experiment.node` | `node.name` |
-| `experiment.run_at` | Current timestamp (`YYYY-MM-DD HH:MM:SS`) |
-
-You can add more or override the defaults via `resource_attributes`:
+**Labels on every run** — for example which fridge or setup it came from:
 
 ```python
-instrument_calibration_node(node, resource_attributes={
-    "experiment.category": "power_rabi",
-})
+instrument_calibration_node(node, resource_attributes={"lab": "b12", "fridge": "bluefors-2"})
 ```
 
-> **Note:** Resource attributes only take effect on the first `instrument_calibration_node` call
-> per process (OpenTelemetry limitation).
+Labels are applied by the first run in a session; in a notebook, restart the
+kernel to change them.
 
-### Dynamic span attributes inside a function
-
-For attributes that are only known at runtime (e.g., per-qubit fit outcomes), access the span
-inside your function:
+**Your own steps**, anywhere after telemetry has started:
 
 ```python
-from qua_libs_core.telemetry import instrument_calibration_node, get_current_span, set_span_attribute
+from qua_libs_core.telemetry import trace_function, trace_span
 
-instrument_calibration_node(node)
+with trace_span("post_processing"):
+    ...
+
+@trace_function("process_data")
+def process_data(x, y):
+    return x + y
+```
+
+**Results from inside a node action:**
+
+```python
+from qua_libs_core.telemetry import get_current_span, set_span_attribute
 
 @node.run_action(skip_if=node.parameters.simulate)
 def analyse_data(node):
-    # ... analysis logic ...
     span = get_current_span()
     for qubit_name, outcome in node.outcomes.items():
         set_span_attribute(span, f"fit.{qubit_name}", outcome)
 ```
 
-`get_current_span()` returns the active span created by the auto-instrumentation. You can also
-access it via `node.namespace["_telemetry_span"]`.
+Record numbers, text, or true/false values — they are what you can later search
+and compare on.
+
+## Checking it worked
+
+Run your script with telemetry enabled, then look at
+`<your-install>/.qua-libs/traces.sqlite` — see
+[README.md](README.md) for how to read it. If you also run an Uptrace server, the
+run appears there within a few seconds.
+
+Nothing showing up? Confirm `enabled = true` is in the settings file that applies
+to where you ran from, and that you restarted the script (or kernel) after
+changing it. A telemetry problem is reported as a warning in the log and never
+stops your measurement.

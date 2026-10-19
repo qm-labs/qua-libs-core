@@ -13,14 +13,15 @@ Usage:
 """
 
 import functools
+from dataclasses import replace
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Protocol
 
-import uptrace
 from opentelemetry.trace import Status, StatusCode
 
-from .config import init_telemetry, TelemetryConfig, get_tracer
-from .project_config import load_project_config
+from .config import force_flush, get_tracer, init_telemetry
+from .config_types import TelemetryConfig
+from .file_config import load_project_config
 
 
 STANDARD_FUNCTIONS = [
@@ -39,8 +40,16 @@ STANDARD_FUNCTIONS = [
 _OPTIONAL_ATTRS = ["operation", "num_shots", "timeout", "load_data_id"]
 
 
+class CalibrationNode(Protocol):
+    """For mypy: this module only uses name, namespace, and run_action on the node."""
+
+    name: str
+    namespace: Dict[str, Any]
+    run_action: Any
+
+
 def instrument_calibration_node(
-    node,
+    node: CalibrationNode,
     config: Optional[TelemetryConfig] = None,
     extra_attributes: Optional[List[str]] = None,
     resource_attributes: Optional[Dict[str, Any]] = None,
@@ -87,19 +96,12 @@ def instrument_calibration_node(
     # User-provided resource_attributes override auto ones
     merged_attrs = {
         **auto_attrs,
-        **(config.resource_attributes or {}),
+        **config.resource_attributes,
         **(resource_attributes or {}),
     }
 
-    if merged_attrs != (config.resource_attributes or {}):
-        config = TelemetryConfig(
-            dsn=config.dsn,
-            service_name=config.service_name,
-            service_version=config.service_version,
-            deployment_environment=config.deployment_environment,
-            enabled=config.enabled,
-            resource_attributes=merged_attrs,
-        )
+    if merged_attrs != config.resource_attributes:
+        config = replace(config, resource_attributes=merged_attrs)
 
     init_telemetry(config)
 
@@ -138,10 +140,7 @@ def instrument_calibration_node(
                     try:
                         result = fn(*fn_args, **fn_kwargs)
                         if fn.__name__ == "save_results":
-                            try:
-                                uptrace.force_flush()
-                            except Exception:
-                                pass
+                            force_flush()
                         return result
                     except Exception as e:
                         span.record_exception(e)

@@ -10,10 +10,12 @@ from qm import QuantumMachinesManager
 from qm.qua import *
 from qm import SimulationConfig, LoopbackInterface
 from configuration import *
+from qua_libs_core.telemetry import start_qca_telemetry, trace_qmm, trace_simulate
 
 # Open communication with the server.
 qop_ip = None
-qmm = QuantumMachinesManager(host=qop_ip)
+telemetry = start_qca_telemetry(__file__, resource_attributes={"experiment.category": "tutorial"})
+qmm = trace_qmm(QuantumMachinesManager)(host=qop_ip)
 
 with program() as measureProg:
     ind = declare(int)
@@ -37,7 +39,7 @@ with program() as measureProg:
         stream1.buffer(10, 10).save_all("two_d_buffer")
 
 # Simulate the program on the server
-job = qmm.simulate(
+job = trace_simulate(qmm.simulate)(
     config,
     measureProg,
     SimulationConfig(
@@ -57,3 +59,5 @@ str4 = res.stream2avg_single.fetch_all()
 str5 = res.buffer_average.fetch_all()
 str6 = res.zipped_streams.fetch_all()
 str7 = res.two_d_buffer.fetch_all()
+
+telemetry.end()

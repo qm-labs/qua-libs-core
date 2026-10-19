@@ -760,10 +760,21 @@ class InstallerApp:
         self.telemetry_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
             checks,
-            text="Enable telemetry (local Uptrace via Docker)",
+            text="Enable telemetry (local)",
             style="Card.TCheckbutton",
             variable=self.telemetry_var,
+            command=self._sync_uptrace_checkbox,
         ).pack(anchor="w", pady=3)
+
+        self.uptrace_var = tk.BooleanVar(value=False)
+        self.uptrace_check = ttk.Checkbutton(
+            checks,
+            text="Start local Uptrace Server (Docker Required)",
+            style="Card.TCheckbutton",
+            variable=self.uptrace_var,
+            state="disabled",
+        )
+        self.uptrace_check.pack(anchor="w", pady=3)
 
         self.force_qualibrate_var = tk.BooleanVar(value=False)
         qualibrate_row = tk.Frame(checks, bg=theme.surface)
@@ -777,11 +788,9 @@ class InstallerApp:
         tk.Label(
             qualibrate_row,
             text=(
-                "QUAlibrate stores one global config at ~/.qualibrate/config.toml (not per install). "
-                "That file tells QUAlibrate which repository, calibration library, and QUAM paths to use. "
-                "If it already exists— from a previous install or manual setup—the installer leaves it "
-                "unchanged so your current calibration project is not overwritten. Check this when you "
-                "want this install to become the active QUAlibrate project."
+                "QUAlibrate stores one global config at ~/.qualibrate/config.toml. "
+                "Check this when you want this install to become the active QUAlibrate project. "
+                "WARNING: This will overwrite the current calibration project."
             ),
             bg=theme.surface,
             fg=theme.muted,
@@ -1069,12 +1078,21 @@ class InstallerApp:
             modality=modality.key,
             dest=dest_raw,
             telemetry=self.telemetry_var.get(),
+            uptrace=self.telemetry_var.get() and self.uptrace_var.get(),
+            skip_telemetry_setup=not (self.telemetry_var.get() and self.uptrace_var.get()),
             existing_action=existing_action,
             python=self.python_var.get(),
             force_qualibrate=self.force_qualibrate_var.get(),
             yes=True,
             non_interactive=True,
         )
+
+    def _sync_uptrace_checkbox(self) -> None:
+        if self.telemetry_var.get():
+            self.uptrace_check.configure(state="normal")
+        else:
+            self.uptrace_var.set(False)
+            self.uptrace_check.configure(state="disabled")
 
     def _confirm_docker_for_telemetry(self) -> bool:
         from telemetry_setup import docker_daemon_ready, docker_required_message, open_docker_install_page
@@ -1083,7 +1101,7 @@ class InstallerApp:
             return True
 
         while not docker_daemon_ready():
-            if messagebox.askretrycancel("Docker required for telemetry", docker_required_message()):
+            if messagebox.askretrycancel("Docker required for Uptrace", docker_required_message()):
                 continue
             if messagebox.askyesno(
                 "Open Docker install page?",
@@ -1104,7 +1122,7 @@ class InstallerApp:
             self._abort_install_prep("Installation cancelled.")
             return
 
-        if options.telemetry:
+        if options.telemetry and options.uptrace:
             self._append_log("Checking Docker...")
             if not self._confirm_docker_for_telemetry():
                 self._abort_install_prep("Installation cancelled.")

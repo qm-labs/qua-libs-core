@@ -5,6 +5,15 @@ from qualang_tools.results import fetching_tool
 import matplotlib.pyplot as plt
 import numpy as np
 from configuration import *
+from qua_libs_core.telemetry import (
+    start_qca_telemetry,
+    trace_execute,
+    trace_fetching,
+    trace_get_simulated_samples,
+    trace_open_qm,
+    trace_qmm,
+    trace_simulate,
+)
 
 # -------------
 # User options
@@ -93,8 +102,8 @@ def get_time_spacing(qmm, config, num_points=10, K_p=0.0, K_i=0.0, K_d=0.0, alph
 
             n_st.save("iteration")
 
-    qm = qmm.open_qm(config, close_other_machines=True)
-    job = qm.execute(check_timestamps)
+    qm = trace_open_qm(qmm.open_qm)(config, close_other_machines=True)
+    job = trace_execute(qm.execute)(check_timestamps)
 
     res = job.result_handles
     res.wait_for_all_values()
@@ -267,7 +276,8 @@ def save_data(out_path, t_s, phase, error, error_integral, error_derivative, tau
 # -----
 # Main
 # -----
-qmm = QuantumMachinesManager(host=qop_ip, port=qop_port, cluster_name=cluster_name)
+telemetry = start_qca_telemetry(__file__, resource_attributes={"experiment.category": "tutorial"})
+qmm = trace_qmm(QuantumMachinesManager)(host=qop_ip, port=qop_port, cluster_name=cluster_name)
 
 
 print("-" * 70)
@@ -286,9 +296,9 @@ if simulate:
     # Simulates the QUA program for the specified duration
     simulation_config = SimulationConfig(duration=2_000)  # In clock cycles = 4ns
     # Simulate blocks python until the simulation is done
-    job = qmm.simulate(config, PLL_prog, simulation_config)
+    job = trace_simulate(qmm.simulate)(config, PLL_prog, simulation_config)
     # Get the simulated samples
-    samples = job.get_simulated_samples()
+    samples = trace_get_simulated_samples(job.get_simulated_samples)()
     # Plot the simulated samples
     samples.con1.plot()
     # Get the waveform report object
@@ -303,11 +313,11 @@ if simulate:
 
 else:
     # Open the quantum machine
-    qm = qmm.open_qm(config, close_other_machines=True)
+    qm = trace_open_qm(qmm.open_qm)(config, close_other_machines=True)
     # Send the QUA program to the OPX, which compiles and executes it
-    job = qm.execute(PLL_prog)
+    job = trace_execute(qm.execute)(PLL_prog)
     # Creates a result handle to fetch data from the OPX
-    results = fetching_tool(
+    results = trace_fetching(fetching_tool)(
         job,
         data_list=["phase", "error", "error_integral", "error_derivative", "I", "Q", "iteration"],
         mode="wait_for_all",
@@ -334,3 +344,5 @@ else:
     save_data(fname, time_ms, phase, error, error_integral, error_derivative, tau_s=spacing)
     print(f"Total measurement duration: {(num_points * spacing) / 1e9} s ")
     qm.close()
+
+telemetry.end()

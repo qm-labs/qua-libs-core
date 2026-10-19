@@ -1,11 +1,11 @@
 """qua-libs-core importable package.
 
-Ships shared ``telemetry`` (OpenTelemetry + Uptrace; off by default — see
-``docs/telemetry/``) and ``qua_config`` (controller/logical QUA config split).
-Import as::
+Ships shared ``telemetry`` (OpenTelemetry with a local SQLite store; Uptrace
+optional; off by default — see ``docs/telemetry/``) and ``qua_config``
+(controller/logical QUA config split). Typical imports::
 
-    from qua_libs_core.telemetry import instrument_calibration_node
+    from qua_libs_core.telemetry import start_qca_telemetry, instrument_calibration_node
     from qua_libs_core.qua_config import merge_qua_config, split_qua_config
 """
 
-__version__ = "0.1.0"
+__version__ = "0.4.3"

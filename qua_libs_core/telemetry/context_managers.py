@@ -11,8 +11,6 @@ from .config import get_tracer
 def trace_span(
     span_name: str,
     attributes: Optional[Dict[str, Any]] = None,
-    tracer_name: Optional[str] = None,
-    tracer_version: Optional[str] = None,
 ):
     """
     Context manager for creating a trace span.
@@ -20,15 +18,12 @@ def trace_span(
     Args:
         span_name: Name for the span
         attributes: Dictionary of attributes to set on the span
-        tracer_name: Optional custom tracer name
-        tracer_version: Optional custom tracer version
 
     Example:
         with trace_span("process_data", attributes={"component": "processor"}):
-            # Your code here
             result = process(data)
     """
-    tracer = get_tracer(tracer_name, tracer_version)
+    tracer = get_tracer()
 
     with tracer.start_as_current_span(span_name) as span:
         if attributes:
@@ -38,28 +33,16 @@ def trace_span(
 
 
 @contextmanager
-def trace_span_with_attributes(
-    span_name: str,
-    tracer_name: Optional[str] = None,
-    tracer_version: Optional[str] = None,
-):
+def trace_span_with_attributes(span_name: str):
     """
     Context manager that yields a span for manual attribute setting.
-
-    This is useful when you need to set attributes dynamically within the span.
-
-    Args:
-        span_name: Name for the span
-        tracer_name: Optional custom tracer name
-        tracer_version: Optional custom tracer version
 
     Example:
         with trace_span_with_attributes("simulation") as span:
             span.set_attribute("duration", 100)
             span.set_attribute("iterations", 50)
-            # Your code here
     """
-    tracer = get_tracer(tracer_name, tracer_version)
+    tracer = get_tracer()
 
     with tracer.start_as_current_span(span_name) as span:
         yield span

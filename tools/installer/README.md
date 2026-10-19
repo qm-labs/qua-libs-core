@@ -5,7 +5,12 @@ dots, neutral atoms, trapped ions).
 
 ## Quick start
 
-**GUI (default):**
+**Pre-built (from the latest GitHub release):**
+
+- [Windows](https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-windows.zip) — unzip and run `QUA-Libraries-Installer.exe`
+- [Linux](https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-linux.zip) — unzip and run `QUA-Libraries-Installer`
+
+**GUI from source:**
 
 ```bash
 cd tools/installer
@@ -26,7 +31,7 @@ python install.py --modality superconducting --dest . --telemetry --yes
 1. Clone the modality repository (git, or zip fallback)
 2. Create a Python virtual environment with `uv` and `uv sync`
 3. Run `qualibrate config` (calibration modalities)
-4. Optionally set up local Uptrace telemetry (Docker + `.qua-libs/telemetry.toml`)
+4. Write `.qua-libs/telemetry.toml`
 
 ## Compatibility
 
@@ -68,17 +73,32 @@ See [docs/telemetry/INSTALLER.md](../../docs/telemetry/INSTALLER.md).
 
 Bundled scripts: `telemetry-self-host/`
 
-## Building the Windows `.exe`
+## Building locally (test a change without a release)
 
-Requirements: Python 3.12+, PyInstaller, Pillow.
+Build on the same operating system you want to test. A build on Linux produces
+the Linux installer, not `QUA-Libraries-Installer.exe`.
+
+Windows (PowerShell):
 
 ```powershell
 cd tools\installer
+py -3.12 -m pip install pyinstaller pillow
 py -3.12 build_installer.py
 ```
 
-The build script downloads `uv` into `bin/`, bundles `assets/`, and runs
-PyInstaller. Close any running `QUA-Libraries-Installer.exe` before rebuilding.
+Run `dist\QUA-Libraries-Installer\QUA-Libraries-Installer.exe`.
+
+Linux or WSL, from the repo root (`py` is the Windows launcher and is not on
+this shell):
+
+```bash
+uv run --with pyinstaller --with pillow python tools/installer/build_installer.py
+```
+
+Run `tools/installer/dist/QUA-Libraries-Installer/QUA-Libraries-Installer`.
+
+No tag, release, or version bump is involved. Rerun the same command after each
+change. Close a running installer before rebuilding.
 
 ## Configuration
 
@@ -90,3 +110,14 @@ PyInstaller. Close any running `QUA-Libraries-Installer.exe` before rebuilding.
 ## Logs
 
 Install log: `~/.qua-libs/install.log`
+
+## Exit codes (CLI)
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Generic/unexpected failure |
+| 2 | Cloning or downloading the repository failed |
+| 3 | Python environment setup failed (uv, Python, venv, or package install) |
+| 4 | QUAlibrate configuration failed |
+| 10 | Cancelled by the user |

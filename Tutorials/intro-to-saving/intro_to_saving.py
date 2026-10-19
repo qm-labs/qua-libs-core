@@ -11,10 +11,12 @@ from qm.qua import *
 from qm.qua import Math
 from configuration import *
 from qm import SimulationConfig
+from qua_libs_core.telemetry import start_qca_telemetry, trace_qmm, trace_simulate
 
 # Open communication with the server.
 qop_ip = None
-qmm = QuantumMachinesManager(host=qop_ip)
+telemetry = start_qca_telemetry(__file__, resource_attributes={"experiment.category": "tutorial"})
+qmm = trace_qmm(QuantumMachinesManager)(host=qop_ip)
 
 # 1. Assigning values to variables and saving variables to tags
 with program() as saving_a_var:
@@ -28,7 +30,7 @@ with program() as saving_a_var:
     assign(b, Math.sin2pi(b))
     save(b, "b_var")
 
-job = qmm.simulate(config, saving_a_var, SimulationConfig(1000))
+job = trace_simulate(qmm.simulate)(config, saving_a_var, SimulationConfig(1000))
 
 res = job.result_handles
 a = res.a_var.fetch_all()["value"]
@@ -52,7 +54,7 @@ with program() as streamProg:
         # Average all of the data and save only the last value into "out".
         out_str.average().save("out")
 
-job = qmm.simulate(config, streamProg, SimulationConfig(500))
+job = trace_simulate(qmm.simulate)(config, streamProg, SimulationConfig(500))
 
 res = job.result_handles
 out = res.out.fetch_all()
@@ -81,7 +83,7 @@ with program() as streamProg_buffer:
         # This time 'save_all' is used, so all of the data is saved ('save' would have only saved [48 49 50])
         out_str.buffer(3).average().save_all("out")
 
-job = qmm.simulate(config, streamProg_buffer, SimulationConfig(500))
+job = trace_simulate(qmm.simulate)(config, streamProg_buffer, SimulationConfig(500))
 
 res = job.result_handles
 out = res.out.fetch_all()["value"]
@@ -106,7 +108,7 @@ with program() as multiple_tags:
         out_str1.buffer(2).average().save("out_avg")
         out_str1.save_all("out_raw")
 
-job = qmm.simulate(config, multiple_tags, SimulationConfig(500))
+job = trace_simulate(qmm.simulate)(config, multiple_tags, SimulationConfig(500))
 
 res = job.result_handles
 out_avg = res.out_avg.fetch_all()
@@ -130,7 +132,7 @@ with program() as streamProg_buffer:
     with stream_processing():
         out_str.buffer(11, 3).save("out")
 
-job = qmm.simulate(config, streamProg_buffer, SimulationConfig(500))
+job = trace_simulate(qmm.simulate)(config, streamProg_buffer, SimulationConfig(500))
 
 res = job.result_handles
 out = res.out.fetch_all()
@@ -139,3 +141,5 @@ print("##################")
 print("5: Using the multi-dimensional buffer operator in stream processing")
 print(f"out={out}")
 print("##################")
+
+telemetry.end()

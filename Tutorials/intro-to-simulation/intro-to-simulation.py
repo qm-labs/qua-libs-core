@@ -4,6 +4,7 @@ Author: Tomer Feld - Quantum Machines
 Created: 26/06/2022
 """
 
+# %% setup
 import numpy as np
 from qm import QuantumMachinesManager
 from qm import SimulationConfig
@@ -11,12 +12,26 @@ from qm import LoopbackInterface
 from qm.qua import *
 import matplotlib.pyplot as plt
 from configuration import *
+from qua_libs_core.telemetry import (
+    start_qca_telemetry,
+    trace_get_simulated_samples,
+    trace_qmm,
+    trace_simulate,
+)
+import time
 
-qop_ip = None
-qmm = QuantumMachinesManager(qop_ip)
+start_time = time.time()
+######################
+# Network parameters #
+######################
+qop_ip = "172.16.33.101"  # Write the QM router IP address
+cluster_name = "CS_1"  # Write your cluster_name if version >= QOP220
+qop_port = 11011  # Write the QOP port if version < QOP220
 
-##
-# ## Example 1 - Basic simulation, No inputs
+telemetry = start_qca_telemetry(__file__, resource_attributes={"experiment.category": "tutorial"})
+qmm = trace_qmm(QuantumMachinesManager)(host=qop_ip, port=qop_port, cluster_name=cluster_name)
+
+# %% Example 1 - Basic simulation, No inputs
 
 with program() as prog1:
     a = declare(fixed)
@@ -31,7 +46,7 @@ with program() as prog1:
         c_stream.with_timestamps().save_all("c")
 
 # simulate program
-simulated_job = qmm.simulate(
+simulated_job = trace_simulate(qmm.simulate)(
     config,
     prog1,
     SimulationConfig(
@@ -40,7 +55,7 @@ simulated_job = qmm.simulate(
 )
 
 # get DAC and digital samples
-samples = simulated_job.get_simulated_samples()
+samples = trace_get_simulated_samples(simulated_job.get_simulated_samples)()
 
 # plot all ports:
 samples.con1.plot()
@@ -50,8 +65,7 @@ res = simulated_job.result_handles
 c = res.c.fetch_all()
 print(c)  # prints a tuple of the value and timestamp
 
-##
-# ## Example 2:
+# %% Example 2
 
 with program() as prog2:
     d = declare(int)
@@ -62,7 +76,7 @@ with program() as prog2:
         wait(50)
 
 # simulate program
-simulated_job = qmm.simulate(
+simulated_job = trace_simulate(qmm.simulate)(
     config,
     prog2,
     SimulationConfig(
@@ -71,7 +85,7 @@ simulated_job = qmm.simulate(
 )
 
 # get DAC and digital samples
-samples = simulated_job.get_simulated_samples()
+samples = trace_get_simulated_samples(simulated_job.get_simulated_samples)()
 
 # plot analog ports 1 and 3:
 plt.figure()
@@ -85,8 +99,7 @@ samples.con1.plot(analog_ports={"1", "3"}, digital_ports={})
 # plt.xlabel("Time [ns]")
 # plt.ylabel("Signal [V]")
 
-##
-## Example 3 - Loopback inputs
+# %% Example 3 - Loopback inputs
 
 len_a = len(np.arange(0.1, 0.45, 0.1))  # for stream processing buffer size
 len_f = len(np.arange(50e6, 60e6, 1e6))  # for stream processing buffer size
@@ -114,7 +127,7 @@ with program() as prog2:
         adc_stream.input1().save_all("adc")
 #
 # simulate program
-simulated_job = qmm.simulate(
+simulated_job = trace_simulate(qmm.simulate)(
     config,
     prog2,
     SimulationConfig(
@@ -139,8 +152,7 @@ plt.plot(I, Q, ".")
 plt.xlabel("I")
 plt.ylabel("Q")
 
-##
-## Example 4 - Multiple Controllers
+# %% Example 4 - Multiple Controllers
 
 from qualang_tools.simulator_tools import create_simulator_controller_connections
 
@@ -160,17 +172,25 @@ with program() as prog4:
     play("const", "qe3")
 
 # simulate program
-simulated_job = qmm.simulate(
+simulated_job = trace_simulate(qmm.simulate)(
     config,
     prog4,
     SimulationConfig(
         duration=200, controller_connections=controller_connections  # duration of simulation in units of 4ns
     ),
 )
-samples_con1 = simulated_job.get_simulated_samples().con1.analog["1"]
-samples_con2 = simulated_job.get_simulated_samples().con2.analog["1"]
+samples = trace_get_simulated_samples(simulated_job.get_simulated_samples)()
+samples_con1 = samples.con1.analog["1"]
+samples_con2 = samples.con2.analog["1"]
 
 plt.figure()
 plt.plot(samples_con1, label="(con1, 1)")
 plt.plot(samples_con2, label="(con2, 1)")
 plt.legend()
+
+telemetry.end()
+
+# plt.show()
+
+end_time = time.time()
+print(f"Time taken: {end_time - start_time} seconds")

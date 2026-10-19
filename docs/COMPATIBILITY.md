@@ -5,6 +5,11 @@ planning an install or validating your environment.
 
 | qua-libs-core | qm-qua | Python | Notes |
 |---------------|--------|--------|-------|
+| 0.4.3 | 1.3.1 | 3.10–3.14 | Installer always writes telemetry.toml (enabled or not). |
+| 0.4.0 | 1.3.1 | 3.10–3.14 | Installer reports stage-specific errors. Fix superconducting git repo path. |
+| 0.3.0 | 1.3.1 | 3.10–3.14 | Installer artifact included in release. |
+| 0.2.1 | 1.3.1 | 3.10–3.14 | Package metadata allows 3.13 and 3.14. Installer default remains 3.12. |
+| 0.2.0 | 1.3.1 | 3.10, 3.11, 3.12 | Local-first telemetry; optional Uptrace. Same SDK combo as 0.1.0. |
 | 0.1.0 | 1.3.1 | 3.10, 3.11, 3.12 | Tested combination for superconducting and NV workspace installs. |
 | (QL-1212-qua141-py314) | 1.4.0 | 3.10–3.14 | Migration kit branch; modality repos pin `qm-qua==1.4.0`. |
 

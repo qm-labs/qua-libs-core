@@ -6,7 +6,7 @@ Steps implemented:
   1. Interactive prompts and repository clone
   2. uv bootstrap, Python venv, and package install
   3. setup-qualibrate-config (non-interactive via qualibrate config --auto-accept)
-  4. optional telemetry (Docker + local Uptrace + .qua-libs/telemetry.toml)
+  4. optional telemetry (local SQLite; optionally Docker + Uptrace)
 """
 
 from __future__ import annotations
@@ -30,7 +30,24 @@ from urllib.request import urlopen
 from config import INSTALLER_DIR, InstallerSettings, Manifest, Modality, load_manifest
 from install_options import InstallOptions, parse_args
 from process_utils import hidden_subprocess_kwargs
-from telemetry_setup import setup_telemetry, telemetry_config_path
+from telemetry_setup import setup_telemetry, telemetry_config_path, write_telemetry_config
+
+# Process exit codes. Distinct codes let a caller (CI, a support request, a
+# wrapper script) tell which stage failed without parsing the message text.
+EXIT_OK = 0
+EXIT_GENERIC = 1
+EXIT_CLONE_FAILED = 2
+EXIT_ENV_SETUP_FAILED = 3
+EXIT_QUALIBRATE_FAILED = 4
+EXIT_CANCELLED = 10
+
+
+class InstallError(RuntimeError):
+    """A user-facing installation failure with a specific exit code."""
+
+    def __init__(self, message: str, *, exit_code: int = EXIT_GENERIC) -> None:
+        super().__init__(message)
+        self.exit_code = exit_code
 
 
 @dataclass
@@ -235,9 +252,15 @@ def build_plan_from_options(manifest: Manifest, options: InstallOptions) -> Inst
         if options.non_interactive:
             enable_telemetry = False
         else:
-            enable_telemetry = prompt_yes_no("\nEnable telemetry (local Uptrace)?", default=False)
+            enable_telemetry = prompt_yes_no("\nEnable telemetry (local SQLite store)?", default=False)
     else:
         enable_telemetry = options.telemetry
+
+    if enable_telemetry and options.uptrace is None and not options.skip_telemetry_setup:
+        if options.non_interactive:
+            options.uptrace = False
+        else:
+            options.uptrace = prompt_yes_no("Also start local Uptrace (Docker)?", default=False)
 
     python_version = resolve_python_version(options, manifest.settings)
 
@@ -253,9 +276,66 @@ def git_available() -> bool:
     return shutil.which("git") is not None
 
 
+def describe_git_clone_failure(url: str, exc: subprocess.CalledProcessError) -> str:
+    """Turn git's own clone error into a message that says what to do next."""
+    output = (exc.output or "").strip()
+    lower = output.lower()
+    if any(
+        phrase in lower
+        for phrase in (
+            "could not read username",
+            "terminal prompts disabled",
+            "authentication failed",
+            "invalid username or password",
+        )
+    ):
+        return (
+            f"Could not clone {url}: Git needs you to sign in to GitHub.\n\n"
+            "Open a terminal and run:\n"
+            f"  git clone {url}\n\n"
+            "Complete the sign-in GitHub opens in your browser, then run the installer again."
+        )
+    if "repository not found" in lower:
+        return (
+            f"Could not clone {url}: repository not found, or not accessible with your current "
+            "GitHub login.\n\n"
+            f"Sign in with an account that has access, then try again, or run:\n  git clone {url}"
+        )
+    if any(
+        phrase in lower
+        for phrase in ("could not resolve host", "failed to connect", "timed out", "network is unreachable")
+    ):
+        return f"Could not clone {url}: network error.\n\n{output or 'Check your internet connection and try again.'}"
+    if "filename too long" in lower or "file name too long" in lower:
+        return (
+            f"Could not clone {url}: a path in this repository is longer than Windows allows.\n\n"
+            "Delete the incomplete folder and try again. If it still fails, enable long paths in "
+            "Windows (LongPathsEnabled) and rerun the installer."
+        )
+    if output:
+        tail = "\n".join(output.splitlines()[-10:])
+        return f"Could not clone {url} (git exited with code {exc.returncode}):\n{tail}"
+    return f"Could not clone {url} (git exited with code {exc.returncode})."
+
+
 def run_git_clone(url: str, dest: Path) -> None:
     logging.info("Cloning %s -> %s", url, dest)
-    subprocess.run(["git", "clone", url, str(dest)], check=True, **hidden_subprocess_kwargs())
+    # -c applies before checkout. core.longpaths must be set then, or Windows
+    # rejects QCA paths that are longer than MAX_PATH (260).
+    cmd = ["git", "clone"]
+    for key, value in GIT_CLONE_CONFIG.items():
+        cmd.extend(["-c", f"{key}={value}"])
+    cmd.extend([url, str(dest)])
+    try:
+        run_cmd(cmd)
+    except subprocess.CalledProcessError as exc:
+        if dest.exists():
+            logging.info("Removing incomplete clone at %s", dest)
+            try:
+                remove_path_robust(dest)
+            except RuntimeError:
+                logging.warning("Could not remove incomplete clone at %s", dest)
+        raise InstallError(describe_git_clone_failure(url, exc), exit_code=EXIT_CLONE_FAILED) from exc
 
 
 GIT_CLONE_CONFIG: dict[str, str] = {
@@ -263,6 +343,7 @@ GIT_CLONE_CONFIG: dict[str, str] = {
     "core.eol": "lf",
     "core.filemode": "false",
     "core.safecrlf": "false",
+    "core.longpaths": "true",
 }
 
 
@@ -272,8 +353,10 @@ def configure_git_clone(repo_root: Path, *, refresh_checkout: bool = False) -> N
         return
 
     logging.info("Configuring git line endings and file modes at %s", repo_root)
+    # git clone writes core.filemode itself, and -c adds a second copy. A plain
+    # `git config key value` then refuses to overwrite the duplicates.
     for key, value in GIT_CLONE_CONFIG.items():
-        run_cmd(["git", "-C", str(repo_root), "config", key, value])
+        run_cmd(["git", "-C", str(repo_root), "config", "--replace-all", key, value])
     if refresh_checkout:
         run_cmd(["git", "-C", str(repo_root), "reset", "--hard", "HEAD"])
 
@@ -284,11 +367,23 @@ def download_github_zip(modality: Modality, dest: Path) -> None:
         with urlopen(modality.zip_url, timeout=120) as response:
             payload = response.read()
     except URLError as exc:
-        raise RuntimeError(f"Failed to download {modality.zip_url}: {exc}") from exc
+        raise InstallError(
+            f"Could not download {modality.zip_url}: {exc.reason if hasattr(exc, 'reason') else exc}\n\n"
+            "If this repository is private, install git and clone it manually instead "
+            "(git can authenticate; this direct download cannot).",
+            exit_code=EXIT_CLONE_FAILED,
+        ) from exc
 
-    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
-        top_level = archive.namelist()[0].split("/")[0]
-        archive.extractall(dest.parent)
+    try:
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            top_level = archive.namelist()[0].split("/")[0]
+            archive.extractall(dest.parent)
+    except zipfile.BadZipFile as exc:
+        raise InstallError(
+            f"Downloaded archive from {modality.zip_url} is not a valid zip file "
+            "(the repository may be private and returned an error page instead).",
+            exit_code=EXIT_CLONE_FAILED,
+        ) from exc
 
     extracted = dest.parent / top_level
     if dest.exists():
@@ -314,7 +409,8 @@ def clone_or_update(plan: InstallPlan, options: InstallOptions) -> Path:
     if dest.exists():
         action = handle_existing_directory(dest, options)
         if action == "abort":
-            raise SystemExit("Installation cancelled.")
+            logging.info("Installation cancelled.")
+            raise SystemExit(EXIT_CANCELLED)
         if action == "skip":
             logging.info("Skipping clone; using existing directory %s", dest)
             configure_git_clone(dest)
@@ -352,18 +448,48 @@ def calibration_workdir(repo_root: Path, modality: Modality) -> Path:
     return package_path(repo_root, modality)
 
 
-def run_cmd(cmd: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
+def run_cmd(cmd: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> str:
+    """Run *cmd*, streaming its output to the log as it runs.
+
+    Returns the combined stdout/stderr. Raises ``subprocess.CalledProcessError``
+    (with ``.output`` set to that combined text) on a non-zero exit, so callers
+    can build a specific error message instead of a bare exit code.
+    """
     merged_env = os.environ.copy()
     if env:
         merged_env.update(env)
     logging.info("Running: %s", " ".join(cmd))
-    subprocess.run(
+    process = subprocess.Popen(
         cmd,
-        check=True,
         cwd=cwd,
         env=merged_env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
         **hidden_subprocess_kwargs(),
     )
+    lines: list[str] = []
+    assert process.stdout is not None
+    for raw_line in process.stdout:
+        line = raw_line.rstrip()
+        if line:
+            lines.append(line)
+            logging.info(line)
+    returncode = process.wait()
+    output = "\n".join(lines)
+    if returncode != 0:
+        raise subprocess.CalledProcessError(returncode, cmd, output=output)
+    return output
+
+
+def _format_called_process_error(exc: subprocess.CalledProcessError) -> str:
+    cmd = " ".join(exc.cmd) if isinstance(exc.cmd, (list, tuple)) else str(exc.cmd)
+    output = (exc.output or exc.stderr or "").strip()
+    if not output:
+        return f"Command failed (exit {exc.returncode}): {cmd}"
+    tail = "\n".join(output.splitlines()[-15:])
+    return f"Command failed (exit {exc.returncode}): {cmd}\n{tail}"
 
 
 def uv_asset_name() -> str:
@@ -393,8 +519,10 @@ def download_uv(settings: InstallerSettings) -> Path:
         with urlopen(url, timeout=120) as response:
             payload = response.read()
     except (URLError, OSError) as exc:
-        raise RuntimeError(
-            "Could not download uv automatically. Install uv manually: https://docs.astral.sh/uv/getting-started/installation/"
+        raise InstallError(
+            f"Could not download uv automatically ({exc}). "
+            "Install uv manually: https://docs.astral.sh/uv/getting-started/installation/",
+            exit_code=EXIT_ENV_SETUP_FAILED,
         ) from exc
 
     uv_name = "uv.exe" if sys.platform == "win32" else "uv"
@@ -432,7 +560,10 @@ def ensure_uv(options: InstallOptions, settings: InstallerSettings) -> Path:
     print("\nuv was not found (needed to create the Python environment).")
     if prompt_yes_no("Download uv automatically?", default=True):
         return download_uv(settings)
-    raise RuntimeError("uv is required. Install it manually: https://docs.astral.sh/uv/getting-started/installation/")
+    raise InstallError(
+        "uv is required. Install it manually: https://docs.astral.sh/uv/getting-started/installation/",
+        exit_code=EXIT_ENV_SETUP_FAILED,
+    )
 
 
 def ensure_python(uv: Path, python_version: str) -> None:
@@ -455,9 +586,10 @@ def install_packages(uv: Path, sync_dir: Path, modality: Modality) -> None:
     if not (sync_dir / "pyproject.toml").is_file():
         raise RuntimeError(f"No pyproject.toml found in {sync_dir}")
 
-    cmd = [str(uv), "sync"]
-    if modality.install_type == "calibration":
-        cmd.append("--prerelease=allow")
+    # Install the committed uv.lock. Passing --prerelease=allow makes uv ignore
+    # that lockfile and resolve again, which fails when one requirement is the
+    # floating quam-builder git URL and another is quam-builder@v0.5.0.
+    cmd = [str(uv), "sync", "--frozen"]
     logging.info("Syncing Python environment from %s", sync_dir)
     run_cmd(cmd, cwd=sync_dir)
 
@@ -476,10 +608,17 @@ def setup_python_environment(
         logging.info("Skipping environment setup (--skip-env)")
         return workdir, sync_dir
 
-    uv = ensure_uv(options, settings)
-    ensure_python(uv, plan.python_version)
-    create_venv(uv, sync_dir, plan.python_version)
-    install_packages(uv, sync_dir, plan.modality)
+    try:
+        uv = ensure_uv(options, settings)
+        ensure_python(uv, plan.python_version)
+        create_venv(uv, sync_dir, plan.python_version)
+        install_packages(uv, sync_dir, plan.modality)
+    except InstallError:
+        raise
+    except subprocess.CalledProcessError as exc:
+        raise InstallError(_format_called_process_error(exc), exit_code=EXIT_ENV_SETUP_FAILED) from exc
+    except RuntimeError as exc:
+        raise InstallError(str(exc), exit_code=EXIT_ENV_SETUP_FAILED) from exc
     return workdir, sync_dir
 
 
@@ -502,7 +641,10 @@ def setup_qualibrate(
     """Run qualibrate config with project-relative defaults. Returns True if configured."""
     qualibrate = venv_executable(env_root_dir, "qualibrate")
     if not qualibrate.is_file():
-        raise RuntimeError(f"qualibrate not found in virtual environment: {qualibrate}")
+        raise InstallError(
+            f"qualibrate not found in virtual environment: {qualibrate}",
+            exit_code=EXIT_QUALIBRATE_FAILED,
+        )
 
     config_path = default_qualibrate_config_path()
     if config_path.is_file():
@@ -535,7 +677,10 @@ def setup_qualibrate(
         str(workdir / q.quam_state_path),
     ]
     logging.info("Configuring QUAlibrate for project %s", q.project)
-    run_cmd(cmd, cwd=workdir)
+    try:
+        run_cmd(cmd, cwd=workdir)
+    except subprocess.CalledProcessError as exc:
+        raise InstallError(_format_called_process_error(exc), exit_code=EXIT_QUALIBRATE_FAILED) from exc
     return True
 
 
@@ -605,11 +750,16 @@ def build_summary_lines(
     if plan.enable_telemetry:
         if telemetry_configured:
             lines.append(f"Telemetry:    enabled ({telemetry_config_path(repo_root)})")
-            lines.append(f"Uptrace UI:   {settings.telemetry.health_url}")
+            toml = telemetry_config_path(repo_root)
+            has_dsn = toml.is_file() and "dsn =" in toml.read_text(encoding="utf-8")
+            if has_dsn:
+                lines.append(f"Uptrace UI:   {settings.telemetry.health_url}")
+            else:
+                lines.append("Uptrace:      not started (local SQLite only)")
         else:
             lines.append("Telemetry:    requested but setup did not complete (see log)")
     else:
-        lines.append("Telemetry:    no")
+        lines.append(f"Telemetry:    off ({telemetry_config_path(repo_root)})")
     if plan.modality.qualibrate_setup:
         if qualibrate_configured:
             lines.append(f"QUAlibrate:   configured ({default_qualibrate_config_path()})")
@@ -654,7 +804,7 @@ def print_summary(
     if not env_skipped and (env_root_dir / ".venv").is_dir():
         print("Activate the virtual environment at the repository root, then run QCA or calibration scripts.")
     elif plan.enable_telemetry and telemetry_configured:
-        print("Telemetry is enabled. Scripts under the install directory will send spans to Uptrace.")
+        print("Telemetry is enabled. Instrumented scripts write spans to .qua-libs/traces.sqlite.")
 
 
 def run_install(
@@ -674,9 +824,11 @@ def run_install(
         if plan.modality.qualibrate_setup and not options.skip_env and not options.skip_qualibrate:
             qualibrate_configured = setup_qualibrate(workdir, env_root_dir, manifest.settings, options)
 
-        telemetry_configured = False
         if plan.enable_telemetry:
             telemetry_configured = setup_telemetry(repo_root, manifest.settings, options)
+        else:
+            write_telemetry_config(repo_root, manifest.settings, enabled=False)
+            telemetry_configured = True
 
         summary = build_summary_lines(
             plan,
@@ -701,15 +853,19 @@ def run_install(
                 telemetry_configured=telemetry_configured,
                 qm_qua_version=qm_qua_version,
             )
-        return 0, summary
+        return EXIT_OK, summary
+    except InstallError as exc:
+        logging.error("%s", exc)
+        return exc.exit_code, [str(exc)]
     except subprocess.CalledProcessError as exc:
-        logging.error("Command failed: %s", exc)
-        return exc.returncode or 1, [f"Command failed with exit code {exc.returncode or 1}"]
+        detail = _format_called_process_error(exc)
+        logging.error(detail)
+        return exc.returncode or EXIT_GENERIC, [detail]
     except (RuntimeError, SystemExit) as exc:
         if isinstance(exc, SystemExit):
             raise
         logging.error("%s", exc)
-        return 1, [str(exc)]
+        return EXIT_GENERIC, [str(exc)]
 
 
 def main(argv: list[str] | None = None) -> int:

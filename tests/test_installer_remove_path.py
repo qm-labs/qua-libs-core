@@ -88,6 +88,19 @@ def test_repo_root_from_parent_directory(installer_modules, tmp_path: Path) -> N
     assert install.repo_root_from_location(modality, parent) == parent / "qua-libs-superconducting"
 
 
+def test_run_git_clone_sets_longpaths_before_checkout(installer_modules, tmp_path: Path) -> None:
+    install = installer_modules["install"]
+    dest = tmp_path / "qua-libs-superconducting"
+
+    with patch.object(install, "run_cmd") as run_cmd:
+        install.run_git_clone("https://github.com/qua-platform/qua-libs-superconducting.git", dest)
+
+    cmd = run_cmd.call_args.args[0]
+    assert cmd[0:2] == ["git", "clone"]
+    assert "core.longpaths=true" in cmd
+    assert cmd[-2:] == ["https://github.com/qua-platform/qua-libs-superconducting.git", str(dest)]
+
+
 def test_configure_git_clone_sets_local_config_and_refreshes_checkout(installer_modules, tmp_path: Path) -> None:
     install = installer_modules["install"]
     repo_root = tmp_path / "qua-libs-superconducting"
@@ -98,7 +111,8 @@ def test_configure_git_clone_sets_local_config_and_refreshes_checkout(installer_
         install.configure_git_clone(repo_root, refresh_checkout=True)
 
     expected_config_calls = [
-        call(["git", "-C", str(repo_root), "config", key, value]) for key, value in install.GIT_CLONE_CONFIG.items()
+        call(["git", "-C", str(repo_root), "config", "--replace-all", key, value])
+        for key, value in install.GIT_CLONE_CONFIG.items()
     ]
     assert run_cmd.call_args_list == expected_config_calls + [
         call(["git", "-C", str(repo_root), "reset", "--hard", "HEAD"])
