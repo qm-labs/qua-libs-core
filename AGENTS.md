@@ -19,4 +19,15 @@ uv run pytest
 uv run pre-commit run --all-files
 ```
 
-Python 3.10–3.14. Do not commit migration work to `main`; use branch `QL-1212-qua141-py314`.
+Python 3.10–3.14.
+
+## Commits
+
+Create a commit only when the user asks for one.
+
+Every commit message has a subject and a body:
+
+- Subject: one imperative line, about 72 characters or fewer, that states why the change exists.
+- Blank line, then a body that explains the reason and any non-obvious constraint. Do not restate the diff line by line.
+
+Do not commit migration work to `main`; use branch `QL-1212-qua141-py314`.

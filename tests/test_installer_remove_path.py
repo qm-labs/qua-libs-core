@@ -76,7 +76,10 @@ def test_default_install_location_uses_cwd(installer_modules, monkeypatch: pytes
     modality = installer_modules["modality"]
     monkeypatch.chdir("/tmp")
 
-    assert install.default_install_location(modality) == Path("/tmp") / "qua-libs-superconducting"
+    # Compare against Path.cwd() rather than the literal "/tmp": on macOS /tmp is
+    # a symlink to /private/tmp, and os.getcwd() (used by Path.cwd()) returns the
+    # resolved path, so a hardcoded "/tmp" comparison is platform-dependent.
+    assert install.default_install_location(modality) == Path.cwd() / "qua-libs-superconducting"
 
 
 def test_repo_root_from_parent_directory(installer_modules, tmp_path: Path) -> None:
