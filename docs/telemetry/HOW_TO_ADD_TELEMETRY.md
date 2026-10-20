@@ -26,14 +26,21 @@ from qua_libs_core.telemetry import (
 telemetry = start_qca_telemetry(__file__, params=save_data_dict)
 
 qmm = trace_qmm(QuantumMachinesManager)(host=qop_ip, cluster_name=cluster_name)
-qm = trace_open_qm(qmm.open_qm)(config)
-job = trace_execute(qm.execute)(qua_program)
+qm = trace_open_qm(qmm.open_qm)(controller_config)
+job = trace_execute(qm.execute)(qua_program, config=logical_config)
 results = trace_fetching(fetching_tool)(job, data_list=["I", "Q", "iteration"], mode="live")
 ...
 fit = trace_fit(Fit())
 ...
 telemetry.end()
 ```
+
+`controller_config` and `logical_config` come from splitting your QUA config —
+`qua_libs_core.qua_config.split_qua_config(config)` in standalone scripts, or
+`calibration_utils.qua_config_split.split_qua_config(config)` in qualibration
+nodes. See [the config-split migration guide](../../qua141_migration/docs/qua-1.4.0-migration.md)
+for the full controller/logical split story; the snippet above only shows
+where the telemetry wrappers go around those already-split calls.
 
 `start_qca_telemetry(__file__, params=save_data_dict)` names the run after your
 file and records your parameters. Pass `save_data_dict` (or any dictionary of

@@ -79,7 +79,10 @@ def split_configuration_file(path: Path) -> bool:
     suffix = "".join(lines[end:])
 
     import_block = _import_block(path)
-    if "from qua_libs_core.qua_config import merge_qua_config" not in text and "from qua_config_split import merge_qua_config" not in text:
+    if (
+        "from qua_libs_core.qua_config import merge_qua_config" not in text
+        and "from qua_config_split import merge_qua_config" not in text
+    ):
         # Insert after module docstring / first imports block
         insert_at = 0
         if prefix.lstrip().startswith('"""') or prefix.lstrip().startswith("'''"):
@@ -93,12 +96,8 @@ def split_configuration_file(path: Path) -> bool:
         prefix = prefix[:insert_at] + import_block + prefix[insert_at:]
 
     replacement = (
-        "controller_config = {\n"
-        + "".join(controller_lines)
-        + "}\n"
-        "logical_config = {\n"
-        + "".join(logical_lines)
-        + "}\n"
+        "controller_config = {\n" + "".join(controller_lines) + "}\n"
+        "logical_config = {\n" + "".join(logical_lines) + "}\n"
         "config = merge_qua_config(controller_config, logical_config)\n"
     )
 
@@ -131,6 +130,19 @@ def migrate_qca_scripts(qca_root: Path) -> int:
             text,
         )
 
+        # Same two rewrites, but when the call site is already wrapped in a
+        # qua_libs_core.telemetry tracer (trace_open_qm(qmm.open_qm)(config) /
+        # trace_execute(qm.execute)(prog)) — leave the wrapper itself intact
+        # and only rewrite the inner arguments.
+        text = re.sub(
+            r"\btrace_open_qm\(qmm\.open_qm\)\(config\b", "trace_open_qm(qmm.open_qm)(controller_config", text
+        )
+        text = re.sub(
+            r"\btrace_execute\(qm\.execute\)\(([^,)]+)\)(?!\s*,\s*config=)",
+            r"trace_execute(qm.execute)(\1, config=logical_config)",
+            text,
+        )
+
         if text != original:
             py.write_text(text, encoding="utf-8")
             count += 1
@@ -153,7 +165,7 @@ def migrate_qualibration_nodes(repo: Path) -> int:
             if "execute_qua_program" not in text and "simulate_qua_program" not in text:
                 continue
             original = text
-    
+
             if "split_qua_config" not in text and "generate_config()" in text:
                 if "from calibration_utils.qua_config_split import split_qua_config" not in text:
                     # Insert after the last closed parenthesis of calibration_utils import blocks
@@ -173,7 +185,7 @@ def migrate_qualibration_nodes(repo: Path) -> int:
                             text = text[: m2.end()] + import_line + text[m2.end() :]
                     else:
                         text = import_line + text
-    
+
             text = re.sub(
                 r"(\n\s+)config = node\.machine\.generate_config\(\)\n(\s+)with qm_session\(qmm, config,",
                 r"\1config = node.machine.generate_config()\n\1controller_config, logical_config = split_qua_config(config)\n\2with qm_session(qmm, controller_config,",
@@ -194,7 +206,7 @@ def migrate_qualibration_nodes(repo: Path) -> int:
                 r"job = qm.execute(\1, config=logical_config)",
                 text,
             )
-    
+
             if text != original:
                 py.write_text(text, encoding="utf-8")
                 count += 1
@@ -210,7 +222,10 @@ def migrate_tutorial(repo: Path) -> None:
     original = text
     import_line = "from calibration_utils.qua_config_split import split_qua_config\n"
     if "split_qua_config" not in text:
-        text = text.replace("from qualibration_libs.runtime import simulate_and_plot\n", import_line + "from qualibration_libs.runtime import simulate_and_plot\n")
+        text = text.replace(
+            "from qualibration_libs.runtime import simulate_and_plot\n",
+            import_line + "from qualibration_libs.runtime import simulate_and_plot\n",
+        )
     text = re.sub(
         r"with qm_session\(qmm, config,",
         "controller_config, logical_config = split_qua_config(config)\n    with qm_session(qmm, controller_config,",
@@ -218,7 +233,7 @@ def migrate_tutorial(repo: Path) -> None:
     )
     text = re.sub(
         r"job = qm\.execute\(node\.namespace\[\"qua_program\"\]\)(?!\s*,\s*config=)",
-        "job = qm.execute(node.namespace[\"qua_program\"], config=logical_config)",
+        'job = qm.execute(node.namespace["qua_program"], config=logical_config)',
         text,
     )
     if text != original:
@@ -243,7 +258,9 @@ def main() -> None:
         for p in qca_root.rglob("*.py")
         if not is_ignored_path(p) and p.name.startswith("config") and p.suffix == ".py"
     ]
-    tutorial_cfg = repo / "Tutorials" / "intro-to-QUAlibrate" / "configuration" / "configuration_with_lf_fem_and_mw_fem.py"
+    tutorial_cfg = (
+        repo / "Tutorials" / "intro-to-QUAlibrate" / "configuration" / "configuration_with_lf_fem_and_mw_fem.py"
+    )
     if tutorial_cfg.exists():
         config_paths.append(tutorial_cfg)
 
@@ -252,7 +269,9 @@ def main() -> None:
     n_nodes = 0 if args.skip_qualibration else migrate_qualibration_nodes(repo)
     if not args.skip_qualibration:
         migrate_tutorial(repo)
-    print(f"\nDone ({qca_root.relative_to(repo)}): {n_cfg} configs, {n_scripts} QCA scripts, {n_nodes} qualibration nodes")
+    print(
+        f"\nDone ({qca_root.relative_to(repo)}): {n_cfg} configs, {n_scripts} QCA scripts, {n_nodes} qualibration nodes"
+    )
 
 
 if __name__ == "__main__":

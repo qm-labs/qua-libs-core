@@ -5,6 +5,12 @@
 - `qua_libs_core.qua_config` (`split_qua_config` / `merge_qua_config`) for the QUA 1.4.0 controller/logical config split
 - `qua141_migration/` kit: bulk migrators, simulation harness, grep gates, guide/runbook, and modality bootstrap (run with `--repo` from a modality checkout)
 - Config-split migrator and grep gates also treat QCA `config_*.py` files (not only `configuration*.py`)
+- Tests for `migrate_config_split.py`'s QCA script call-site rewrites (`qua141_migration/tests/test_migrate_config_split.py`)
+
+### Changed
+
+- `migrate_config_split.py`'s `migrate_qca_scripts` now also rewrites the `qua_libs_core.telemetry`-wrapped call shape (`trace_open_qm(qmm.open_qm)(config)` / `trace_execute(qm.execute)(prog)`), not just the bare one, so a modality that already adopted telemetry can run the migrator instead of hand-resolving a config-split merge conflict on every QCA script
+- `docs/telemetry/HOW_TO_ADD_TELEMETRY.md`'s measurement-script example now shows the 1.4.0 controller/logical config split call shape
 
 ## [0.4.3] - 2026-10-12
 
