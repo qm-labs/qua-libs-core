@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.4.4] - 2026-10-27
+
 ### Added
 
 - Installer: macOS build (Apple Silicon), `QUA-Libraries-Installer-macos.zip`, attached to GitHub releases alongside Windows and Linux.

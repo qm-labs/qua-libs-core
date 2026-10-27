@@ -5,6 +5,7 @@ planning an install or validating your environment.
 
 | qua-libs-core | qm-qua | Python | Notes |
 |---------------|--------|--------|-------|
+| 0.4.4 | 1.3.1 | 3.10–3.14 | Installer also ships an Apple Silicon macOS build. |
 | 0.4.3 | 1.3.1 | 3.10–3.14 | Installer always writes telemetry.toml (enabled or not). |
 | 0.4.0 | 1.3.1 | 3.10–3.14 | Installer reports stage-specific errors. Fix superconducting git repo path. |
 | 0.3.0 | 1.3.1 | 3.10–3.14 | Installer artifact included in release. |
