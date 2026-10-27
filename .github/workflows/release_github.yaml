@@ -62,6 +62,8 @@ jobs:
             zip_name: QUA-Libraries-Installer-windows.zip
           - os: ubuntu-latest
             zip_name: QUA-Libraries-Installer-linux.zip
+          - os: macos-latest
+            zip_name: QUA-Libraries-Installer-macos.zip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

@@ -95,11 +95,12 @@ Retry PyPI only: Actions → **Publish release to PyPI**, ref `v0.1.1`.
 |----------|----------|
 | PyPI wheel | `qua_libs_core` package + LICENSE metadata |
 | PyPI sdist | `qua_libs_core` source only |
-| GitHub release | Wheel, sdist, `QUA-Libraries-Installer-windows.zip`, and `QUA-Libraries-Installer-linux.zip` |
+| GitHub release | Wheel, sdist, `QUA-Libraries-Installer-windows.zip`, `QUA-Libraries-Installer-macos.zip`, and `QUA-Libraries-Installer-linux.zip` |
 
 README download links:
 
 - `https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-windows.zip`
+- `https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-macos.zip`
 - `https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-linux.zip`
 
 Keep those filenames if you change the zip step. The links only work after a

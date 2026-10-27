@@ -8,6 +8,7 @@ dots, neutral atoms, trapped ions).
 **Pre-built (from the latest GitHub release):**
 
 - [Windows](https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-windows.zip) — unzip and run `QUA-Libraries-Installer.exe`
+- [macOS](https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-macos.zip) — unzip and run `QUA-Libraries-Installer` (Apple Silicon)
 - [Linux](https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-linux.zip) — unzip and run `QUA-Libraries-Installer`
 
 **GUI from source:**
@@ -17,8 +18,9 @@ cd tools/installer
 python install_gui.py
 ```
 
-**Windows executable:** build with `python build_installer.py`, then run
-`dist/QUA-Libraries-Installer/QUA-Libraries-Installer.exe`.
+**Build from source:** `python build_installer.py` (see *Building locally* below
+for per-OS commands), then run `dist/QUA-Libraries-Installer/QUA-Libraries-Installer`
+(`.exe` on Windows).
 
 **CLI:**
 
@@ -76,7 +78,8 @@ Bundled scripts: `telemetry-self-host/`
 ## Building locally (test a change without a release)
 
 Build on the same operating system you want to test. A build on Linux produces
-the Linux installer, not `QUA-Libraries-Installer.exe`.
+the Linux installer, a build on macOS produces the macOS installer, not
+`QUA-Libraries-Installer.exe`.
 
 Windows (PowerShell):
 
@@ -96,6 +99,17 @@ uv run --with pyinstaller --with pillow python tools/installer/build_installer.p
 ```
 
 Run `tools/installer/dist/QUA-Libraries-Installer/QUA-Libraries-Installer`.
+
+macOS, from the repo root:
+
+```bash
+uv run --with pyinstaller --with pillow python tools/installer/build_installer.py
+```
+
+Run `tools/installer/dist/QUA-Libraries-Installer/QUA-Libraries-Installer`. The
+first launch is blocked by Gatekeeper ("Apple could not verify..."); right-click
+the file, choose **Open**, then confirm once. That one-time step goes away once
+the binary is code-signed and notarized.
 
 No tag, release, or version bump is involved. Rerun the same command after each
 change. Close a running installer before rebuilding.

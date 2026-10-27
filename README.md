@@ -45,9 +45,10 @@ off unless you turn it on; see the [telemetry documentation](docs/telemetry/READ
 Download the graphical installer from the latest GitHub release:
 
 - **[Windows](https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-windows.zip)** — unzip and run `QUA-Libraries-Installer.exe`
+- **[macOS](https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-macos.zip)** — unzip and run `QUA-Libraries-Installer` (Apple Silicon)
 - **[Linux](https://github.com/qua-platform/qua-libs-core/releases/latest/download/QUA-Libraries-Installer-linux.zip)** — unzip and run `QUA-Libraries-Installer`
 
-Both zips are attached to each
+All three zips are attached to each
 [GitHub release](https://github.com/qua-platform/qua-libs-core/releases).
 
 To run from source (any OS), or for CLI flags, see
