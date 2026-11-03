@@ -111,7 +111,7 @@ those from the GitHub repository or the graphical installer zips.
 
 ## Installer alignment
 
-The installer displays the tested combo from `installer.json`:
+`installer.json` records the tested combo:
 
 ```json
 "release": {
@@ -121,5 +121,5 @@ The installer displays the tested combo from `installer.json`:
 ```
 
 Keep this in sync with [`docs/COMPATIBILITY.md`](COMPATIBILITY.md) when cutting a
-release. The install **summary** still reports the **actual** `qm-qua` version
-installed from the modality lockfile.
+release. The install summary reports the qm-qua version actually installed
+from the modality lockfile.

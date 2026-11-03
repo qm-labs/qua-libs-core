@@ -749,13 +749,8 @@ class InstallerApp:
             style="QM.TCombobox",
         ).grid(row=2, column=1, sticky="w", pady=6)
 
-        release = self.settings.release
-        ttk.Label(options, text="QUA SDK", style="Field.TLabel").grid(row=3, column=0, sticky="w", padx=(0, 16), pady=6)
-        sdk_label = f"qm-qua {release.qm_qua}" if release else "from modality lockfile"
-        ttk.Label(options, text=sdk_label, style="Field.TLabel").grid(row=3, column=1, columnspan=2, sticky="w", pady=6)
-
         checks = tk.Frame(options, bg=theme.surface)
-        checks.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(10, 0))
+        checks.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(10, 0))
 
         self.telemetry_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
