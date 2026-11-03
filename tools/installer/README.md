@@ -56,6 +56,14 @@ existing modality repo, not an unrelated project. The repo must be
 that repository if it's private (see the main README's note on signing in to
 GitHub first).
 
+The clone can have the modality project either at its own root (the normal
+layout when cloning `qua-platform/qua-libs-<modality>` directly) or nested
+one level down in a `qua-libs-<modality>/` folder — the layout produced by
+the CS team's customer-onboarding workflow, which copies the modality repo
+into a subdirectory instead of the customer repo's root so it doesn't try to
+push Actions workflow files to `.github/workflows/`. The installer checks
+for `pyproject.toml` in both locations and uses whichever one it finds.
+
 ## Compatibility
 
 See [docs/COMPATIBILITY.md](../../docs/COMPATIBILITY.md) for the full compatibility matrix.

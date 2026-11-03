@@ -487,6 +487,35 @@ def clone_or_update(plan: InstallPlan, options: InstallOptions) -> Path:
     return dest
 
 
+def resolve_content_root(repo_root: Path, modality: Modality) -> Path:
+    """Find the modality project's actual root under *repo_root*.
+
+    A --repo override may point at two different layouts:
+      - direct: repo_root IS the modality repo (cloning qua-platform/qua-libs-
+        <modality>, or a plain fork of it, works this way).
+      - nested: repo_root is a customer repo created by the CS onboarding
+        workflow, which copies the modality repo into a qua-libs-<modality>/
+        subdirectory instead of the repo root (that workflow's GitHub App
+        token cannot push .github/workflows/ at the repo root).
+
+    Every modality repo has its own pyproject.toml at its root regardless of
+    package_dir/workspace, so its presence is what distinguishes the two.
+    """
+    if (repo_root / "pyproject.toml").is_file():
+        return repo_root
+
+    nested = repo_root / f"qua-libs-{modality.key}"
+    if (nested / "pyproject.toml").is_file():
+        return nested
+
+    raise InstallError(
+        f"Could not find a qua-libs-{modality.key} project under {repo_root} "
+        f"(checked for pyproject.toml at the repo root and at "
+        f"qua-libs-{modality.key}/).",
+        exit_code=EXIT_CLONE_FAILED,
+    )
+
+
 def package_path(repo_root: Path, modality: Modality) -> Path:
     if modality.package_dir == ".":
         return repo_root
@@ -871,6 +900,7 @@ def run_install(
 ) -> tuple[int, list[str]]:
     try:
         repo_root = clone_or_update(plan, options)
+        repo_root = resolve_content_root(repo_root, plan.modality)
         workdir, env_root_dir = setup_python_environment(plan, repo_root, options, manifest.settings)
 
         qm_qua_version = None

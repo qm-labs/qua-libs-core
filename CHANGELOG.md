@@ -8,7 +8,7 @@
 
 ### Added
 
-- Installer: `--repo owner/name` (CLI) and a **Repository** field (GUI) to install from any GitHub repo instead of the modality's default, while keeping that modality's folder-layout assumptions.
+- Installer: `--repo owner/name` (CLI) and a **Repository** field (GUI) to install from any GitHub repo instead of the modality's default, while keeping that modality's folder-layout assumptions. Supports the modality project either at the clone root or nested one level down in `qua-libs-<modality>/`, which is the layout the CS onboarding workflow produces.
 
 ## [0.4.4] - 2026-10-27
 

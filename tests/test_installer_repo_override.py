@@ -85,3 +85,41 @@ def test_resolve_modality_repo_rejects_invalid_override(installer_modules) -> No
 
     with pytest.raises(SystemExit):
         install.resolve_modality_repo(modality, options)
+
+
+def test_resolve_content_root_direct_layout(installer_modules, tmp_path) -> None:
+    install = installer_modules["install"]
+    modality = installer_modules["modality"]
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n")
+
+    assert install.resolve_content_root(tmp_path, modality) == tmp_path
+
+
+def test_resolve_content_root_nested_layout(installer_modules, tmp_path) -> None:
+    """A repo created by the CS onboarding workflow: qua-libs-<modality>/ subdir."""
+    install = installer_modules["install"]
+    modality = installer_modules["modality"]
+    nested = tmp_path / f"qua-libs-{modality.key}"
+    nested.mkdir()
+    (nested / "pyproject.toml").write_text("[project]\nname = 'x'\n")
+
+    assert install.resolve_content_root(tmp_path, modality) == nested
+
+
+def test_resolve_content_root_prefers_direct_over_nested(installer_modules, tmp_path) -> None:
+    install = installer_modules["install"]
+    modality = installer_modules["modality"]
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n")
+    nested = tmp_path / f"qua-libs-{modality.key}"
+    nested.mkdir()
+    (nested / "pyproject.toml").write_text("[project]\nname = 'x'\n")
+
+    assert install.resolve_content_root(tmp_path, modality) == tmp_path
+
+
+def test_resolve_content_root_raises_when_neither_layout_matches(installer_modules, tmp_path) -> None:
+    install = installer_modules["install"]
+    modality = installer_modules["modality"]
+
+    with pytest.raises(install.InstallError):
+        install.resolve_content_root(tmp_path, modality)
