@@ -18,8 +18,7 @@ Use the helper script (updates [`qua_libs_core/__init__.py`](qua_libs_core/__ini
 uv run python scripts/bump_version.py 0.1.1
 ```
 
-When changing version, also update [`CHANGELOG.md`](../CHANGELOG.md) (release notes source), [`docs/COMPATIBILITY.md`](COMPATIBILITY.md), and
-[`tools/installer/installer.json`](../tools/installer/installer.json) → `release.qm_qua` if the tested SDK changed.
+When changing version, also update [`CHANGELOG.md`](../CHANGELOG.md) (release notes source) and [`docs/COMPATIBILITY.md`](COMPATIBILITY.md). The installed qm-qua version comes from the modality repo's lockfile, not from `installer.json`.
 
 ## Branches
 
@@ -115,11 +114,11 @@ those from the GitHub repository or the graphical installer zips.
 
 ```json
 "release": {
-  "qua_libs_core": "0.2.1",
-  "qm_qua": "1.3.1"
+  "qua_libs_core": "0.2.1"
 }
 ```
 
-Keep this in sync with [`docs/COMPATIBILITY.md`](COMPATIBILITY.md) when cutting a
-release. The install summary reports the qm-qua version actually installed
-from the modality lockfile.
+`release.qua_libs_core` stays in sync with `qua_libs_core.__version__`. The
+install summary reports the qm-qua version actually installed from the
+modality lockfile. Record tested SDK combinations in
+[`docs/COMPATIBILITY.md`](COMPATIBILITY.md).

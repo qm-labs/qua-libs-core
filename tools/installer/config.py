@@ -61,10 +61,9 @@ class TelemetrySettings:
 
 @dataclass(frozen=True)
 class ReleaseInfo:
-    """Current tested release shown on the installer setup page (see docs/COMPATIBILITY.md)."""
+    """qua-libs-core version recorded for this installer build."""
 
     qua_libs_core: str
-    qm_qua: str
 
 
 @dataclass(frozen=True)
@@ -136,7 +135,6 @@ def _load_release_info(installer_data: dict) -> ReleaseInfo | None:
         return None
     return ReleaseInfo(
         qua_libs_core=release_data["qua_libs_core"],
-        qm_qua=release_data["qm_qua"],
     )
 
 

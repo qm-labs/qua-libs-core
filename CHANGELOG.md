@@ -4,7 +4,7 @@
 
 - Release workflow signs `QUA-Libraries-Installer.exe` with QM's EV certificate before the Windows zip is attached to the draft GitHub release. Linux and macOS installers are unchanged.
 - Release workflow passes the tag into the version check explicitly, so a manual run validates the tag that was entered.
-- Installer setup screen no longer shows a qm-qua version. The version actually installed is reported on the summary page.
+- Installer no longer records or shows a qm-qua version up front. The summary page reports the version the modality lockfile actually installed.
 
 ### Added
 
