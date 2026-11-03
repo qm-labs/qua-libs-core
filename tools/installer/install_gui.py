@@ -20,6 +20,7 @@ from install_options import InstallOptions
 from install import (
     build_plan_from_options,
     default_install_location,
+    normalize_repo,
     repo_root_from_location,
     run_install,
     setup_logging,
@@ -721,12 +722,20 @@ class InstallerApp:
         self.modality_display.grid(row=0, column=1, columnspan=2, sticky="ew", pady=6)
         self.modality_display.bind("<<ComboboxSelected>>", self._on_modality_selected)
 
-        ttk.Label(options, text="Install to", style="Field.TLabel").grid(
+        ttk.Label(options, text="Repository", style="Field.TLabel").grid(
             row=1, column=0, sticky="w", padx=(0, 16), pady=6
+        )
+        self.repo_var = tk.StringVar(value=self.manifest.modalities[default_key].repo)
+        ttk.Entry(options, textvariable=self.repo_var, style="QM.TEntry").grid(
+            row=1, column=1, columnspan=2, sticky="ew", pady=6
+        )
+
+        ttk.Label(options, text="Install to", style="Field.TLabel").grid(
+            row=2, column=0, sticky="w", padx=(0, 16), pady=6
         )
         self.dest_var = tk.StringVar()
         ttk.Entry(options, textvariable=self.dest_var, style="QM.TEntry").grid(
-            row=1, column=1, sticky="ew", pady=6, padx=(0, 8)
+            row=2, column=1, sticky="ew", pady=6, padx=(0, 8)
         )
         self.browse_link = LinkButton(
             options,
@@ -736,9 +745,9 @@ class InstallerApp:
             self._browse_dest,
             bg=theme.surface,
         )
-        self.browse_link.grid(row=1, column=2, sticky="e", pady=6)
+        self.browse_link.grid(row=2, column=2, sticky="e", pady=6)
 
-        ttk.Label(options, text="Python", style="Field.TLabel").grid(row=2, column=0, sticky="w", padx=(0, 16), pady=6)
+        ttk.Label(options, text="Python", style="Field.TLabel").grid(row=3, column=0, sticky="w", padx=(0, 16), pady=6)
         self.python_var = tk.StringVar(value=self.settings.default_python)
         ttk.Combobox(
             options,
@@ -747,10 +756,10 @@ class InstallerApp:
             state="readonly",
             width=10,
             style="QM.TCombobox",
-        ).grid(row=2, column=1, sticky="w", pady=6)
+        ).grid(row=3, column=1, sticky="w", pady=6)
 
         checks = tk.Frame(options, bg=theme.surface)
-        checks.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(10, 0))
+        checks.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(10, 0))
 
         self.telemetry_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
@@ -911,6 +920,7 @@ class InstallerApp:
     def _on_modality_selected(self, _event: object | None = None) -> None:
         modality = self._selected_modality()
         self.dest_var.set(str(default_install_location(modality)))
+        self.repo_var.set(modality.repo)
 
     def _browse_dest(self) -> None:
         selected = filedialog.askdirectory(title="Choose install location")
@@ -1063,6 +1073,17 @@ class InstallerApp:
             messagebox.showerror("Missing path", "Choose an install location.")
             return None
 
+        repo_raw = self.repo_var.get().strip()
+        if not repo_raw:
+            messagebox.showerror("Missing repository", "Enter a repository (owner/name), or restore the default.")
+            return None
+        if repo_raw != modality.repo:
+            try:
+                normalize_repo(repo_raw)
+            except ValueError as exc:
+                messagebox.showerror("Invalid repository", str(exc))
+                return None
+
         repo_root = self._resolved_repo_root()
         assert repo_root is not None
         existing_action = self._resolve_existing_action(repo_root)
@@ -1071,6 +1092,7 @@ class InstallerApp:
 
         return InstallOptions(
             modality=modality.key,
+            repo=repo_raw if repo_raw != modality.repo else None,
             dest=dest_raw,
             telemetry=self.telemetry_var.get(),
             uptrace=self.telemetry_var.get() and self.uptrace_var.get(),

@@ -11,6 +11,7 @@ from config import Manifest
 @dataclass
 class InstallOptions:
     modality: str | None = None
+    repo: str | None = None
     dest: str | None = None
     telemetry: bool | None = None
     uptrace: bool | None = None
@@ -37,6 +38,14 @@ def parse_args(argv: list[str] | None, manifest: Manifest) -> InstallOptions:
         "--modality",
         choices=list(manifest.modality_order),
         help="Modality to install (interactive prompt if omitted).",
+    )
+    parser.add_argument(
+        "--repo",
+        help=(
+            "Clone a different GitHub repository instead of the modality's default "
+            "(owner/name, e.g. acme-corp/acme-labs). Must still match the "
+            "chosen modality's folder layout. Requires git access to that repository."
+        ),
     )
     parser.add_argument(
         "--dest",
@@ -96,6 +105,7 @@ def parse_args(argv: list[str] | None, manifest: Manifest) -> InstallOptions:
     args = parser.parse_args(argv)
     return InstallOptions(
         modality=args.modality,
+        repo=args.repo,
         dest=args.dest,
         telemetry=args.telemetry,
         uptrace=args.uptrace,

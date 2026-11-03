@@ -35,6 +35,27 @@ python install.py --modality superconducting --dest . --telemetry --yes
 3. Run `qualibrate config` (calibration modalities)
 4. Write `.qua-libs/telemetry.toml`
 
+## Installing from a different repository
+
+By default each modality clones its own `qua-platform/qua-libs-<modality>`
+repo. To install from a fork instead — a customer's private fork, or any
+other repo with the same layout — pick the modality that matches the fork's
+folder layout (superconducting, NV, ...), then override which repository
+gets cloned. The GUI has a **Repository** field under **Modality**,
+pre-filled with the default and editable. From the CLI:
+
+```bash
+python install.py --modality superconducting --repo acme-corp/acme-labs
+```
+
+This only changes which GitHub repo is cloned. `package_dir`, `workspace`, and
+`qualibrate_setup` still come from the chosen modality, so the fork needs to
+keep that modality's folder layout — it is meant for a modified copy of an
+existing modality repo, not an unrelated project. The repo must be
+`owner/name` (no URL), and whoever runs the installer needs git access to
+that repository if it's private (see the main README's note on signing in to
+GitHub first).
+
 ## Compatibility
 
 See [docs/COMPATIBILITY.md](../../docs/COMPATIBILITY.md) for the full compatibility matrix.

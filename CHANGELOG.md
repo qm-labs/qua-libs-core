@@ -6,6 +6,10 @@
 - Release workflow passes the tag into the version check explicitly, so a manual run validates the tag that was entered.
 - Installer setup screen no longer shows a qm-qua version. The version actually installed is reported on the summary page.
 
+### Added
+
+- Installer: `--repo owner/name` (CLI) and a **Repository** field (GUI) to install from any GitHub repo instead of the modality's default, while keeping that modality's folder-layout assumptions.
+
 ## [0.4.4] - 2026-10-27
 
 ### Added

@@ -15,6 +15,7 @@ import io
 import logging
 import os
 import platform
+import re
 import shutil
 import stat
 import subprocess
@@ -22,7 +23,7 @@ import sys
 import tarfile
 import time
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
@@ -141,6 +142,61 @@ def choose_modality(manifest: Manifest, preset: str | None) -> Modality:
         print("  Invalid choice. Try again.")
 
 
+_REPO_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?/[A-Za-z0-9._-]+$")
+
+
+def normalize_repo(repo: str) -> str:
+    """Validate and normalize an ``owner/name`` GitHub repo override.
+
+    Accepts an optional trailing ``.git`` or ``/``. Rejects full URLs (http(s)://,
+    git@) so the clone_url/zip_url properties stay simple string formatting.
+    """
+    value = repo.strip().rstrip("/")
+    if value.endswith(".git"):
+        value = value[: -len(".git")]
+    if not _REPO_RE.match(value):
+        raise ValueError(
+            f"{repo!r} is not a GitHub 'owner/name' repo (e.g. acme-corp/acme-labs). "
+            "Paste the owner/name only, not a full URL."
+        )
+    return value
+
+
+def resolve_modality_repo(modality: Modality, options: InstallOptions) -> Modality:
+    """Apply a ``--repo`` override (a fork or alternate copy of the repo) onto *modality*.
+
+    The override only changes which GitHub repository is cloned; the modality's
+    folder layout assumptions (package_dir, workspace, qualibrate_setup) still
+    apply, so the override repo must keep that same layout (e.g. a fork of the
+    modality repo), not an unrelated project.
+    """
+    if options.repo:
+        try:
+            repo = normalize_repo(options.repo)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+        return replace(modality, repo=repo)
+
+    if options.non_interactive:
+        return modality
+
+    print(
+        f"\nDefault repository: {modality.repo}\n"
+        "Press Enter to use it, or paste a private fork (owner/name) to install "
+        "a customer-specific repo instead."
+    )
+    while True:
+        choice = prompt("Repository", modality.repo)
+        if choice == modality.repo:
+            return modality
+        try:
+            repo = normalize_repo(choice)
+        except ValueError as exc:
+            print(f"  {exc}")
+            continue
+        return replace(modality, repo=repo)
+
+
 def _chmod_writable_and_retry(func, path: str | os.PathLike[str], exc: BaseException) -> None:
     if not os.path.exists(path):
         return
@@ -246,6 +302,7 @@ def resolve_python_version(options: InstallOptions, settings: InstallerSettings)
 
 def build_plan_from_options(manifest: Manifest, options: InstallOptions) -> InstallPlan:
     modality = choose_modality(manifest, options.modality)
+    modality = resolve_modality_repo(modality, options)
     dest = resolve_repo_root(modality, options.dest)
 
     if options.telemetry is None:
