@@ -79,70 +79,24 @@ jobs:
         run: python -m pip install --upgrade pip pyinstaller pillow
       - name: Build installer
         run: python tools/installer/build_installer.py
-      # Windows: the .exe is signed by a separate job before zipping (see sign-windows-installer).
-      - name: Upload unsigned Windows installer
-        if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
-        with:
-          name: unsigned-installer-windows
-          path: tools/installer/dist/QUA-Libraries-Installer
-          if-no-files-found: error
-          retention-days: 1
+      # Windows signing (qm-labs/workflows sign-windows) is deferred to 0.5.1.
+      # Calling that reusable workflow currently fails workflow parsing because
+      # qua-libs-core cannot access it, which blocks the whole release.
       - name: Zip installer folder
-        if: runner.os != 'Windows'
         env:
           ZIP_NAME: ${{ matrix.zip_name }}
         run: |
           python -c "import os, shutil; from pathlib import Path; src = Path('tools/installer/dist/QUA-Libraries-Installer'); shutil.make_archive(str(src.parent / Path(os.environ['ZIP_NAME']).stem), 'zip', root_dir=src.parent, base_dir=src.name)"
       - uses: actions/upload-artifact@v4
-        if: runner.os != 'Windows'
         with:
           name: installer-${{ matrix.os }}
           path: tools/installer/dist/${{ matrix.zip_name }}
           if-no-files-found: error
           retention-days: 14
 
-  sign-windows-installer:
-    name: sign-windows-installer
-    needs: build-installer
-    uses: qm-labs/workflows/.github/workflows/sign-windows.yml@sign-windows-v1
-    with:
-      unsigned-artifact: unsigned-installer-windows
-      signed-artifact: signed-installer-windows
-      patterns: QUA-Libraries-Installer.exe
-      signed-files-only: true
-    secrets: inherit # passes the CODE_SIGNING_TOKEN_PIN org secret
-
-  zip-windows-installer:
-    name: zip-windows-installer
-    needs: sign-windows-installer
-    runs-on: ubuntu-latest
-    env:
-      ZIP_NAME: QUA-Libraries-Installer-windows.zip
-    steps:
-      - name: Download unsigned installer folder
-        uses: actions/download-artifact@v4
-        with:
-          name: unsigned-installer-windows
-          path: tools/installer/dist/QUA-Libraries-Installer
-      - name: Overlay signed executable
-        uses: actions/download-artifact@v4
-        with:
-          name: signed-installer-windows
-          path: tools/installer/dist/QUA-Libraries-Installer
-      - name: Zip installer folder
-        run: |
-          python3 -c "import os, shutil; from pathlib import Path; src = Path('tools/installer/dist/QUA-Libraries-Installer'); shutil.make_archive(str(src.parent / Path(os.environ['ZIP_NAME']).stem), 'zip', root_dir=src.parent, base_dir=src.name)"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: installer-windows-latest
-          path: tools/installer/dist/${{ env.ZIP_NAME }}
-          if-no-files-found: error
-          retention-days: 14
-
   release:
     name: github-release
-    needs: [build, build-installer, zip-windows-installer]
+    needs: [build, build-installer]
     runs-on: ubuntu-latest
     permissions:
       contents: write
