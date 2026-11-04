@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-04
+
+### Changed
+
+- Release workflow ships unsigned Windows, macOS, and Linux installer zips. Windows signing is skipped so the release can build.
+
 ## [0.5.0] - 2026-11-04
 
 ### Added
@@ -8,7 +14,7 @@
 
 ### Changed
 
-- Windows installer signing is deferred to 0.5.1. This release ships unsigned Windows, macOS, and Linux installer zips. The release workflow could not call the shared signing workflow, and that failure blocked the whole release.
+- Release workflow signs `QUA-Libraries-Installer.exe` with QM's EV certificate before the Windows zip is attached to the draft GitHub release. Linux and macOS installers are unchanged.
 - Release workflow passes the tag into the version check explicitly, so a manual run validates the tag that was entered.
 - Installer no longer records or shows a qm-qua version up front. The summary page reports the version actually installed.
 - Installer has a **QUA SDK** dropdown (GUI) / `--qm-qua-version` (CLI): **Latest available** (default, tries `uv sync --upgrade-package qm-qua`, falls back to uv.lock on failure), **Locked (uv.lock)**, or an exact version — populated from PyPI, and pinning to an exact version fails clearly instead of falling back if it's incompatible. The summary's SDK line is annotated with which of these actually happened.

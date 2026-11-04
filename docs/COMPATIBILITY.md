@@ -5,7 +5,8 @@ planning an install or validating your environment.
 
 | qua-libs-core | qm-qua | Python | Notes |
 |---------------|--------|--------|-------|
-| 0.5.0 | 1.3.1 (lockfile) | 3.10–3.14 | Installer can install latest, the lockfile pin, or a chosen qm-qua version. `--repo` accepts a customer repo, including one with `qua-libs-<modality>/` nested inside. Installer zips are unsigned; Windows signing is planned for 0.5.1. |
+| 0.5.1 | 1.3.1 (lockfile) | 3.10–3.14 | Same installer behavior as 0.5.0. Installer zips are unsigned so the release workflow can build. |
+| 0.5.0 | 1.3.1 (lockfile) | 3.10–3.14 | Installer can install latest, the lockfile pin, or a chosen qm-qua version. `--repo` accepts a customer repo, including one with `qua-libs-<modality>/` nested inside. |
 | 0.4.4 | 1.3.1 | 3.10–3.14 | Installer also ships an Apple Silicon macOS build. |
 | 0.4.3 | 1.3.1 | 3.10–3.14 | Installer always writes telemetry.toml (enabled or not). |
 | 0.4.0 | 1.3.1 | 3.10–3.14 | Installer reports stage-specific errors. Fix superconducting git repo path. |
