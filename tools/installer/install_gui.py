@@ -761,6 +761,14 @@ class InstallerApp:
         checks = tk.Frame(options, bg=theme.surface)
         checks.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(10, 0))
 
+        self.sdk_upgrade_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(
+            checks,
+            text="Use the latest available qm-qua",
+            style="Card.TCheckbutton",
+            variable=self.sdk_upgrade_var,
+        ).pack(anchor="w", pady=3)
+
         self.telemetry_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
             checks,
@@ -1099,6 +1107,7 @@ class InstallerApp:
             skip_telemetry_setup=not (self.telemetry_var.get() and self.uptrace_var.get()),
             existing_action=existing_action,
             python=self.python_var.get(),
+            skip_sdk_upgrade=not self.sdk_upgrade_var.get(),
             force_qualibrate=self.force_qualibrate_var.get(),
             yes=True,
             non_interactive=True,

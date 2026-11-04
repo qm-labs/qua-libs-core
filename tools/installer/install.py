@@ -668,16 +668,34 @@ def create_venv(uv: Path, workdir: Path, python_version: str) -> Path:
     return venv_dir
 
 
-def install_packages(uv: Path, sync_dir: Path, modality: Modality) -> None:
+def install_packages(uv: Path, sync_dir: Path, modality: Modality, *, upgrade_qm_qua: bool = True) -> bool:
+    """Sync the Python environment from *sync_dir*.
+
+    Returns True if qm-qua was re-resolved to its latest available version;
+    False if the version pinned in uv.lock was installed instead (upgrade
+    disabled via --skip-sdk-upgrade, no network, or a dependency conflict
+    elsewhere in the tree prevented re-resolving -- e.g. one requirement is
+    the floating quam-builder git URL and another is quam-builder@v0.5.0,
+    which only surfaces when uv actually re-resolves instead of trusting the
+    committed lockfile as-is).
+    """
     if not (sync_dir / "pyproject.toml").is_file():
         raise RuntimeError(f"No pyproject.toml found in {sync_dir}")
 
-    # Install the committed uv.lock. Passing --prerelease=allow makes uv ignore
-    # that lockfile and resolve again, which fails when one requirement is the
-    # floating quam-builder git URL and another is quam-builder@v0.5.0.
-    cmd = [str(uv), "sync", "--frozen"]
+    if upgrade_qm_qua:
+        logging.info("Resolving the latest available qm-qua for %s", sync_dir)
+        try:
+            run_cmd([str(uv), "sync", "--upgrade-package", "qm-qua"], cwd=sync_dir)
+            return True
+        except subprocess.CalledProcessError as exc:
+            logging.warning(
+                "Could not resolve a newer qm-qua; installing the version pinned " "in uv.lock instead.\n%s",
+                _format_called_process_error(exc),
+            )
+
     logging.info("Syncing Python environment from %s", sync_dir)
-    run_cmd(cmd, cwd=sync_dir)
+    run_cmd([str(uv), "sync", "--frozen"], cwd=sync_dir)
+    return False
 
 
 def setup_python_environment(
@@ -685,27 +703,32 @@ def setup_python_environment(
     repo_root: Path,
     options: InstallOptions,
     settings: InstallerSettings,
-) -> tuple[Path, Path]:
-    """Return (calibration_workdir, env_root) after optional venv setup."""
+) -> tuple[Path, Path, bool]:
+    """Return (calibration_workdir, env_root, qm_qua_latest) after optional venv setup.
+
+    qm_qua_latest is True if qm-qua was re-resolved to its latest available
+    version rather than installed from the pinned uv.lock.
+    """
     workdir = calibration_workdir(repo_root, plan.modality)
     sync_dir = env_root(repo_root, plan.modality)
 
     if options.skip_env:
         logging.info("Skipping environment setup (--skip-env)")
-        return workdir, sync_dir
+        return workdir, sync_dir, False
 
+    qm_qua_latest = False
     try:
         uv = ensure_uv(options, settings)
         ensure_python(uv, plan.python_version)
         create_venv(uv, sync_dir, plan.python_version)
-        install_packages(uv, sync_dir, plan.modality)
+        qm_qua_latest = install_packages(uv, sync_dir, plan.modality, upgrade_qm_qua=not options.skip_sdk_upgrade)
     except InstallError:
         raise
     except subprocess.CalledProcessError as exc:
         raise InstallError(_format_called_process_error(exc), exit_code=EXIT_ENV_SETUP_FAILED) from exc
     except RuntimeError as exc:
         raise InstallError(str(exc), exit_code=EXIT_ENV_SETUP_FAILED) from exc
-    return workdir, sync_dir
+    return workdir, sync_dir, qm_qua_latest
 
 
 def venv_executable(workdir: Path, name: str) -> Path:
@@ -818,6 +841,7 @@ def build_summary_lines(
     qualibrate_configured: bool,
     telemetry_configured: bool,
     qm_qua_version: str | None = None,
+    qm_qua_latest: bool = False,
 ) -> list[str]:
     lines = [
         "Installation complete",
@@ -827,7 +851,10 @@ def build_summary_lines(
         f"Python:       {plan.python_version}",
     ]
     if qm_qua_version:
-        lines.append(f"QUA SDK:      {format_qm_qua_version_label(qm_qua_version)}")
+        label = format_qm_qua_version_label(qm_qua_version)
+        if qm_qua_latest:
+            label += " (latest available)"
+        lines.append(f"QUA SDK:      {label}")
     if env_skipped:
         lines.append("Environment:  skipped (--skip-env)")
     elif (env_root_dir / ".venv").is_dir():
@@ -870,6 +897,7 @@ def print_summary(
     qualibrate_configured: bool,
     telemetry_configured: bool,
     qm_qua_version: str | None = None,
+    qm_qua_latest: bool = False,
 ) -> None:
     lines = build_summary_lines(
         plan,
@@ -881,6 +909,7 @@ def print_summary(
         qualibrate_configured=qualibrate_configured,
         telemetry_configured=telemetry_configured,
         qm_qua_version=qm_qua_version,
+        qm_qua_latest=qm_qua_latest,
     )
     print("\n" + "=" * 60)
     for line in lines:
@@ -901,7 +930,7 @@ def run_install(
     try:
         repo_root = clone_or_update(plan, options)
         repo_root = resolve_content_root(repo_root, plan.modality)
-        workdir, env_root_dir = setup_python_environment(plan, repo_root, options, manifest.settings)
+        workdir, env_root_dir, qm_qua_latest = setup_python_environment(plan, repo_root, options, manifest.settings)
 
         qm_qua_version = None
         if not options.skip_env:
@@ -927,6 +956,7 @@ def run_install(
             qualibrate_configured=qualibrate_configured,
             telemetry_configured=telemetry_configured,
             qm_qua_version=qm_qua_version,
+            qm_qua_latest=qm_qua_latest,
         )
         if not options.non_interactive:
             print_summary(
@@ -939,6 +969,7 @@ def run_install(
                 qualibrate_configured=qualibrate_configured,
                 telemetry_configured=telemetry_configured,
                 qm_qua_version=qm_qua_version,
+                qm_qua_latest=qm_qua_latest,
             )
         return EXIT_OK, summary
     except InstallError as exc:

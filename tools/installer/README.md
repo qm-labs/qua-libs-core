@@ -31,9 +31,26 @@ python install.py --modality superconducting --dest . --telemetry --yes
 ## What it does
 
 1. Clone the modality repository (git, or zip fallback)
-2. Create a Python virtual environment with `uv` and `uv sync`
+2. Create a Python virtual environment with `uv` and `uv sync`, trying to
+   resolve the latest available `qm-qua` first (see below)
 3. Run `qualibrate config` (calibration modalities)
 4. Write `.qua-libs/telemetry.toml`
+
+## QUA SDK version
+
+By default the installer runs `uv sync --upgrade-package qm-qua`, so you get
+the newest `qm-qua` that's compatible with everything else in the project,
+rather than whatever was pinned in `uv.lock` when the modality repo was last
+released. If that re-resolution fails — no network, or a dependency conflict
+elsewhere in the tree — it falls back to `uv sync --frozen`, installing the
+exact version pinned in `uv.lock`, and logs a warning explaining why.
+
+Pass `--skip-sdk-upgrade` (CLI) or uncheck **Use the latest available
+qm-qua** (GUI) to always use the pinned version — useful for reproducing a
+specific tested combination (see
+[docs/COMPATIBILITY.md](../../docs/COMPATIBILITY.md)). The summary's
+`QUA SDK:` line is read from the installed environment either way, and is
+marked `(latest available)` only when the upgrade actually succeeded.
 
 ## Installing from a different repository
 
