@@ -1,15 +1,17 @@
 ## [Unreleased]
 
-### Changed
-
-- Release workflow signs `QUA-Libraries-Installer.exe` with QM's EV certificate before the Windows zip is attached to the draft GitHub release. Linux and macOS installers are unchanged.
-- Release workflow passes the tag into the version check explicitly, so a manual run validates the tag that was entered.
-- Installer no longer records or shows a qm-qua version up front. The summary page reports the version the modality lockfile actually installed.
-- Installer has a **QUA SDK** dropdown (GUI) / `--qm-qua-version` (CLI): **Latest available** (default, tries `uv sync --upgrade-package qm-qua`, falls back to uv.lock on failure), **Locked (uv.lock)**, or an exact version — populated from PyPI, and pinning to an exact version fails clearly instead of falling back if it's incompatible. The summary's SDK line is annotated with which of these actually happened.
+## [0.5.0] - 2026-11-04
 
 ### Added
 
 - Installer: `--repo owner/name` (CLI) and a **Repository** field (GUI) to install from any GitHub repo instead of the modality's default, while keeping that modality's folder-layout assumptions. Supports the modality project either at the clone root or nested one level down in `qua-libs-<modality>/`, which is the layout the CS onboarding workflow produces.
+
+### Changed
+
+- Release workflow signs `QUA-Libraries-Installer.exe` with QM's EV certificate before the Windows zip is attached to the draft GitHub release. Linux and macOS installers are unchanged.
+- Release workflow passes the tag into the version check explicitly, so a manual run validates the tag that was entered.
+- Installer no longer records or shows a qm-qua version up front. The summary page reports the version actually installed.
+- Installer has a **QUA SDK** dropdown (GUI) / `--qm-qua-version` (CLI): **Latest available** (default, tries `uv sync --upgrade-package qm-qua`, falls back to uv.lock on failure), **Locked (uv.lock)**, or an exact version — populated from PyPI, and pinning to an exact version fails clearly instead of falling back if it's incompatible. The summary's SDK line is annotated with which of these actually happened.
 
 ## [0.4.4] - 2026-10-27
 
