@@ -5,7 +5,7 @@
 - Release workflow signs `QUA-Libraries-Installer.exe` with QM's EV certificate before the Windows zip is attached to the draft GitHub release. Linux and macOS installers are unchanged.
 - Release workflow passes the tag into the version check explicitly, so a manual run validates the tag that was entered.
 - Installer no longer records or shows a qm-qua version up front. The summary page reports the version the modality lockfile actually installed.
-- Installer tries to resolve the latest available qm-qua (`uv sync --upgrade-package qm-qua`) instead of always installing the version pinned in uv.lock. Falls back to the pinned version if that resolution fails (dependency conflict, no network). Opt out with `--skip-sdk-upgrade` (CLI) or unchecking **Use the latest available qm-qua** (GUI). The summary marks the SDK line "(latest available)" when the upgrade succeeded.
+- Installer has a **QUA SDK** dropdown (GUI) / `--qm-qua-version` (CLI): **Latest available** (default, tries `uv sync --upgrade-package qm-qua`, falls back to uv.lock on failure), **Locked (uv.lock)**, or an exact version — populated from PyPI, and pinning to an exact version fails clearly instead of falling back if it's incompatible. The summary's SDK line is annotated with which of these actually happened.
 
 ### Added
 

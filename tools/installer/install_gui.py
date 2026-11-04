@@ -20,11 +20,15 @@ from install_options import InstallOptions
 from install import (
     build_plan_from_options,
     default_install_location,
+    fetch_qm_qua_versions,
     normalize_repo,
     repo_root_from_location,
     run_install,
     setup_logging,
 )
+
+QM_QUA_LATEST_LABEL = "Latest available"
+QM_QUA_LOCKED_LABEL = "Locked (uv.lock)"
 
 try:
     from PIL import Image, ImageTk
@@ -700,6 +704,19 @@ class InstallerApp:
         self.summary_text.configure(state="disabled")
         self._show_page("complete")
 
+    def _fetch_qm_qua_versions_worker(self) -> None:
+        """Populate the QUA SDK dropdown with PyPI versions (runs off the UI thread)."""
+        versions = fetch_qm_qua_versions()
+
+        def apply() -> None:
+            if self._closing or not self.root.winfo_exists():
+                return
+            if not versions:
+                return
+            self.qm_qua_version_combo["values"] = [QM_QUA_LATEST_LABEL, QM_QUA_LOCKED_LABEL, *versions]
+
+        self.root.after(0, apply)
+
     def _build_options(self, parent: tk.Misc) -> None:
         theme = self.theme
         options = tk.Frame(parent, bg=theme.surface)
@@ -758,16 +775,20 @@ class InstallerApp:
             style="QM.TCombobox",
         ).grid(row=3, column=1, sticky="w", pady=6)
 
-        checks = tk.Frame(options, bg=theme.surface)
-        checks.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(10, 0))
+        ttk.Label(options, text="QUA SDK", style="Field.TLabel").grid(row=4, column=0, sticky="w", padx=(0, 16), pady=6)
+        self.qm_qua_version_var = tk.StringVar(value=QM_QUA_LATEST_LABEL)
+        self.qm_qua_version_combo = ttk.Combobox(
+            options,
+            textvariable=self.qm_qua_version_var,
+            values=[QM_QUA_LATEST_LABEL, QM_QUA_LOCKED_LABEL],
+            state="readonly",
+            style="QM.TCombobox",
+        )
+        self.qm_qua_version_combo.grid(row=4, column=1, columnspan=2, sticky="ew", pady=6)
+        threading.Thread(target=self._fetch_qm_qua_versions_worker, daemon=True).start()
 
-        self.sdk_upgrade_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(
-            checks,
-            text="Use the latest available qm-qua",
-            style="Card.TCheckbutton",
-            variable=self.sdk_upgrade_var,
-        ).pack(anchor="w", pady=3)
+        checks = tk.Frame(options, bg=theme.surface)
+        checks.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(10, 0))
 
         self.telemetry_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(
@@ -1098,6 +1119,14 @@ class InstallerApp:
         if existing_action == "abort":
             return None
 
+        sdk_selection = self.qm_qua_version_var.get()
+        if sdk_selection == QM_QUA_LATEST_LABEL:
+            qm_qua_version = "latest"
+        elif sdk_selection == QM_QUA_LOCKED_LABEL:
+            qm_qua_version = "locked"
+        else:
+            qm_qua_version = sdk_selection  # an exact version picked from the dropdown
+
         return InstallOptions(
             modality=modality.key,
             repo=repo_raw if repo_raw != modality.repo else None,
@@ -1107,7 +1136,7 @@ class InstallerApp:
             skip_telemetry_setup=not (self.telemetry_var.get() and self.uptrace_var.get()),
             existing_action=existing_action,
             python=self.python_var.get(),
-            skip_sdk_upgrade=not self.sdk_upgrade_var.get(),
+            qm_qua_version=qm_qua_version,
             force_qualibrate=self.force_qualibrate_var.get(),
             yes=True,
             non_interactive=True,

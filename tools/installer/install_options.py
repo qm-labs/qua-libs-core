@@ -17,7 +17,7 @@ class InstallOptions:
     uptrace: bool | None = None
     existing_action: str | None = None
     python: str | None = None
-    skip_sdk_upgrade: bool = False
+    qm_qua_version: str = "latest"
     skip_env: bool = False
     skip_qualibrate: bool = False
     force_qualibrate: bool = False
@@ -73,11 +73,14 @@ def parse_args(argv: list[str] | None, manifest: Manifest) -> InstallOptions:
         help=f"Python version for the virtual environment (default: {settings.default_python}).",
     )
     parser.add_argument(
-        "--skip-sdk-upgrade",
-        action="store_true",
+        "--qm-qua-version",
+        default="latest",
         help=(
-            "Install the qm-qua version pinned in uv.lock instead of trying to "
-            "resolve the latest available version first."
+            "Which qm-qua to install: 'latest' (default; tries to resolve the "
+            "newest available, falls back to uv.lock if that fails), 'locked' "
+            "(always install the version pinned in uv.lock), or an exact "
+            "version (e.g. 1.4.1) to pin to -- fails clearly instead of "
+            "falling back if that version isn't compatible."
         ),
     )
     parser.add_argument(
@@ -120,7 +123,7 @@ def parse_args(argv: list[str] | None, manifest: Manifest) -> InstallOptions:
         uptrace=args.uptrace,
         existing_action=args.existing_action,
         python=args.python,
-        skip_sdk_upgrade=args.skip_sdk_upgrade,
+        qm_qua_version=args.qm_qua_version,
         skip_env=args.skip_env,
         skip_qualibrate=args.skip_qualibrate,
         force_qualibrate=args.force_qualibrate,
