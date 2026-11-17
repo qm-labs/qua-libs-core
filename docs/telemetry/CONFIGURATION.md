@@ -40,6 +40,17 @@ max_bytes = 52428800
 `[telemetry]` covers the recording as a whole: whether it happens at all, how
 runs are labelled, and whether a copy also goes to an Uptrace server.
 
+To mark every run from one customer site, add the site id Customer Success gave
+you. Every computer and user that shares this file reports as the same site:
+
+```toml
+[telemetry.resource_attributes]
+"qua.site_id" = "123e4567-e89b-12d3-a456-426614174000"
+```
+
+The key needs its quotes, because the dot is part of the name. The installer
+writes this for you from its **Site ID** field and keeps it when you reinstall.
+
 `[telemetry.local]` covers only the file kept on
 your machine: where it lives and how large it may get. Your runs always go to
 that file, so these settings apply whether or not you use Uptrace. Leave the

@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+### Added
+
+- Installer: a separate **Telemetry** page (setup, then telemetry, then progress) with a short explanation, **Enable telemetry**, **Start local Uptrace**, **Send to a remote Uptrace server** (paste a DSN), and an optional **Site ID**. CLI: `--remote-dsn` and `--site-id`.
+- `telemetry.toml` can carry `"qua.site_id"` under `[telemetry.resource_attributes]` so every computer at one customer site reports as the same site. The installer keeps an existing site id when it rewrites the file.
+
 ## [0.5.1] - 2026-11-04
 
 ### Changed
