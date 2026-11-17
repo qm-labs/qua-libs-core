@@ -534,9 +534,9 @@ class InstallerApp:
         self.remote_dsn_var = tk.StringVar()
         self.site_id_var = tk.StringVar()
 
-        self._telemetry_hint(
-            body, "Saves each instrumented run to a file in this installation. Nothing leaves this computer."
-        ).pack(anchor="w", pady=(0, 2))
+        self._telemetry_hint(body, "Save each instrumented run to a local file on this computer?").pack(
+            anchor="w", pady=(0, 2)
+        )
         ttk.Checkbutton(
             body,
             text="Enable telemetry",
@@ -546,7 +546,8 @@ class InstallerApp:
         ).pack(anchor="w", pady=(0, 14))
 
         self._telemetry_hint(
-            body, "Starts an Uptrace server in Docker on this computer and sends a copy of each run to it."
+            body,
+            "Uptrace is a telemetry service that allows viewing the data in a web gui. Start a local Uptrace server in Docker on this computer?",
         ).pack(anchor="w", pady=(0, 2))
         self.uptrace_check = ttk.Checkbutton(
             body,
@@ -559,7 +560,7 @@ class InstallerApp:
 
         self._telemetry_hint(
             body,
-            "Sends a copy of each run to a remote Uptrace server. Paste the DSN you received from Quantum Machines.",
+            "Send telemetry to a remote Uptrace server? Paste the DSN you received from Quantum Machines.",
         ).pack(anchor="w", pady=(0, 2))
         self.remote_check = ttk.Checkbutton(
             body,
@@ -574,7 +575,7 @@ class InstallerApp:
 
         self._telemetry_hint(
             body,
-            "Labels these runs with your customer ID from Customer Success. Leave blank if you do not have one.",
+            "If using remote Uptrace, please provide the UUID provided by Quantum Machines. Leave blank if you do not have one.",
         ).pack(anchor="w", pady=(0, 2))
         site_row = tk.Frame(body, bg=theme.surface)
         site_row.pack(fill="x")
@@ -601,10 +602,10 @@ class InstallerApp:
         WinSecondaryButton(actions, "Close", theme, self.fonts, self._on_close, bg=theme.surface).pack(
             side=tk.RIGHT, padx=(12, 0)
         )
+        WinPrimaryButton(actions, "Install", theme, self.fonts, self._start_install).pack(side=tk.RIGHT)
         WinSecondaryButton(actions, "Back", theme, self.fonts, lambda: self._show_page("setup"), bg=theme.surface).pack(
             side=tk.RIGHT, padx=(12, 0)
         )
-        WinPrimaryButton(actions, "Install", theme, self.fonts, self._start_install).pack(side=tk.RIGHT)
 
     def _telemetry_hint(self, parent: tk.Misc, text: str) -> tk.Label:
         return tk.Label(
