@@ -16,7 +16,8 @@ import tkinter.font as tkfont
 from tkinter import filedialog, messagebox, ttk
 
 from config import INSTALLER_DIR, Manifest, Modality, UiTheme, load_manifest
-from install_options import InstallOptions
+from install_options import InstallOptions, normalize_site_id, validate_remote_dsn
+from telemetry_setup import read_remote_dsn, read_site_id
 from install import (
     build_plan_from_options,
     default_install_location,
@@ -351,10 +352,12 @@ class InstallerApp:
 
         pad = self.theme.content_padding
         self.setup_page = tk.Frame(self.content, bg=self.theme.surface, padx=pad, pady=pad)
+        self.telemetry_page = tk.Frame(self.content, bg=self.theme.surface, padx=pad, pady=pad)
         self.progress_page = tk.Frame(self.content, bg=self.theme.surface, padx=pad, pady=pad)
         self.complete_page = tk.Frame(self.content, bg=self.theme.surface, padx=pad, pady=pad)
 
         self._build_setup_page(self.setup_page)
+        self._build_telemetry_page(self.telemetry_page)
         self._build_progress_page(self.progress_page)
         self._build_complete_page(self.complete_page)
 
@@ -418,10 +421,13 @@ class InstallerApp:
 
     def _show_page(self, page: str) -> None:
         self.setup_page.pack_forget()
+        self.telemetry_page.pack_forget()
         self.progress_page.pack_forget()
         self.complete_page.pack_forget()
         if page == "setup":
             self.setup_page.pack(fill=tk.BOTH, expand=True)
+        elif page == "telemetry":
+            self.telemetry_page.pack(fill=tk.BOTH, expand=True)
         elif page == "progress":
             self.progress_page.pack(fill=tk.BOTH, expand=True)
         else:
@@ -495,6 +501,171 @@ class InstallerApp:
         self._build_setup_header(parent)
         self._build_options(parent)
         self._build_setup_footer(parent)
+
+    def _build_telemetry_page(self, parent: tk.Misc) -> None:
+        theme = self.theme
+        parent.grid_columnconfigure(0, weight=1)
+        parent.grid_rowconfigure(1, weight=1)
+
+        header = tk.Frame(parent, bg=theme.surface)
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 18))
+        self._load_logo(header)
+        tk.Label(
+            header,
+            text="Telemetry",
+            bg=theme.surface,
+            fg=theme.heading,
+            font=self.fonts.get(22),
+            anchor="w",
+        ).pack(anchor="w")
+        self._telemetry_hint(
+            header,
+            "Telemetry records the steps, timings, success or failure, error traces, and numeric "
+            "parameters of your runs. Measurement data and figures are not included.",
+        ).pack(anchor="w", pady=(8, 0))
+
+        body = tk.Frame(parent, bg=theme.surface)
+        body.grid(row=1, column=0, sticky="nsew", pady=(0, 16))
+        body.grid_columnconfigure(0, weight=1)
+
+        self.telemetry_var = tk.BooleanVar(value=False)
+        self.uptrace_var = tk.BooleanVar(value=False)
+        self.remote_var = tk.BooleanVar(value=False)
+        self.remote_dsn_var = tk.StringVar()
+        self.site_id_var = tk.StringVar()
+
+        self._telemetry_hint(
+            body, "Saves each instrumented run to a file in this installation. Nothing leaves this computer."
+        ).pack(anchor="w", pady=(0, 2))
+        ttk.Checkbutton(
+            body,
+            text="Enable telemetry",
+            style="Card.TCheckbutton",
+            variable=self.telemetry_var,
+            command=lambda: self._sync_telemetry_controls(None),
+        ).pack(anchor="w", pady=(0, 14))
+
+        self._telemetry_hint(
+            body, "Starts an Uptrace server in Docker on this computer and sends a copy of each run to it."
+        ).pack(anchor="w", pady=(0, 2))
+        self.uptrace_check = ttk.Checkbutton(
+            body,
+            text="Start local Uptrace server (Docker required)",
+            style="Card.TCheckbutton",
+            variable=self.uptrace_var,
+            command=lambda: self._sync_telemetry_controls("uptrace"),
+        )
+        self.uptrace_check.pack(anchor="w", pady=(0, 14))
+
+        self._telemetry_hint(
+            body,
+            "Sends a copy of each run to a remote Uptrace server. Paste the DSN you received from Quantum Machines.",
+        ).pack(anchor="w", pady=(0, 2))
+        self.remote_check = ttk.Checkbutton(
+            body,
+            text="Send to a remote Uptrace server",
+            style="Card.TCheckbutton",
+            variable=self.remote_var,
+            command=lambda: self._sync_telemetry_controls("remote"),
+        )
+        self.remote_check.pack(anchor="w")
+        self.remote_dsn_entry = ttk.Entry(body, textvariable=self.remote_dsn_var, style="QM.TEntry")
+        self.remote_dsn_entry.pack(fill="x", padx=(26, 0), pady=(4, 14))
+
+        self._telemetry_hint(
+            body,
+            "Labels these runs with your customer ID from Customer Success. Leave blank if you do not have one.",
+        ).pack(anchor="w", pady=(0, 2))
+        site_row = tk.Frame(body, bg=theme.surface)
+        site_row.pack(fill="x")
+        site_row.grid_columnconfigure(1, weight=1)
+        ttk.Label(site_row, text="Site ID", style="Field.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 16))
+        self.site_id_entry = ttk.Entry(site_row, textvariable=self.site_id_var, style="QM.TEntry")
+        self.site_id_entry.grid(row=0, column=1, sticky="ew")
+
+        self._sync_telemetry_controls(None)
+
+        footer = tk.Frame(parent, bg=theme.surface)
+        footer.grid(row=2, column=0, sticky="ew", pady=(18, 0))
+        footer.grid_columnconfigure(0, weight=1)
+        tk.Frame(footer, bg=theme.divider, height=1).grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 14))
+        tk.Label(
+            footer,
+            text="Quantum Machines",
+            bg=theme.surface,
+            fg=theme.muted,
+            font=self.fonts.get(9),
+        ).grid(row=1, column=0, sticky="w")
+        actions = tk.Frame(footer, bg=theme.surface)
+        actions.grid(row=1, column=1, sticky="e")
+        WinSecondaryButton(actions, "Close", theme, self.fonts, self._on_close, bg=theme.surface).pack(
+            side=tk.RIGHT, padx=(12, 0)
+        )
+        WinSecondaryButton(actions, "Back", theme, self.fonts, lambda: self._show_page("setup"), bg=theme.surface).pack(
+            side=tk.RIGHT, padx=(12, 0)
+        )
+        WinPrimaryButton(actions, "Install", theme, self.fonts, self._start_install).pack(side=tk.RIGHT)
+
+    def _telemetry_hint(self, parent: tk.Misc, text: str) -> tk.Label:
+        return tk.Label(
+            parent,
+            text=text,
+            bg=self.theme.surface,
+            fg=self.theme.muted,
+            font=self.fonts.get(9),
+            justify=tk.LEFT,
+            anchor="w",
+            wraplength=620,
+        )
+
+    def _sync_telemetry_controls(self, changed: str | None) -> None:
+        """Keep the telemetry checkboxes consistent: local and remote Uptrace are exclusive."""
+        if not self.telemetry_var.get():
+            self.uptrace_var.set(False)
+            self.remote_var.set(False)
+        elif changed == "uptrace" and self.uptrace_var.get():
+            self.remote_var.set(False)
+        elif changed == "remote" and self.remote_var.get():
+            self.uptrace_var.set(False)
+
+        on = self.telemetry_var.get()
+        self.uptrace_check.configure(state="normal" if on else "disabled")
+        self.remote_check.configure(state="normal" if on else "disabled")
+        self.remote_dsn_entry.configure(state="normal" if self.remote_var.get() else "disabled")
+        self.site_id_entry.configure(state="normal" if on else "disabled")
+
+    def _prefill_telemetry_from_existing(self) -> None:
+        """Show a site id / remote DSN already stored in this install's telemetry.toml."""
+        repo_root = self._resolved_repo_root()
+        if repo_root is None:
+            return
+        if not self.site_id_var.get().strip():
+            self.site_id_var.set(read_site_id(repo_root) or "")
+        if not self.remote_dsn_var.get().strip():
+            self.remote_dsn_var.set(read_remote_dsn(repo_root, self.settings) or "")
+
+    def _telemetry_inputs(self) -> tuple[str | None, str | None] | None:
+        """Validated (remote_dsn, site_id), or None after showing an error."""
+        remote_dsn: str | None = None
+        site_id: str | None = None
+        try:
+            if self.telemetry_var.get() and self.remote_var.get():
+                remote_dsn = validate_remote_dsn(self.remote_dsn_var.get())
+            if self.telemetry_var.get() and self.site_id_var.get().strip():
+                site_id = normalize_site_id(self.site_id_var.get())
+        except ValueError as exc:
+            messagebox.showerror("Telemetry settings", str(exc))
+            return None
+        return remote_dsn, site_id
+
+    def _go_to_telemetry(self) -> None:
+        if not self.dest_var.get().strip():
+            messagebox.showerror("Missing path", "Choose an install location.")
+            return
+        if self._validated_repo() is None:
+            return
+        self._prefill_telemetry_from_existing()
+        self._show_page("telemetry")
 
     def _build_progress_page(self, parent: tk.Misc) -> None:
         parent.grid_columnconfigure(0, weight=1)
@@ -790,25 +961,6 @@ class InstallerApp:
         checks = tk.Frame(options, bg=theme.surface)
         checks.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(10, 0))
 
-        self.telemetry_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(
-            checks,
-            text="Enable telemetry (local)",
-            style="Card.TCheckbutton",
-            variable=self.telemetry_var,
-            command=self._sync_uptrace_checkbox,
-        ).pack(anchor="w", pady=3)
-
-        self.uptrace_var = tk.BooleanVar(value=False)
-        self.uptrace_check = ttk.Checkbutton(
-            checks,
-            text="Start local Uptrace Server (Docker Required)",
-            style="Card.TCheckbutton",
-            variable=self.uptrace_var,
-            state="disabled",
-        )
-        self.uptrace_check.pack(anchor="w", pady=3)
-
         self.force_qualibrate_var = tk.BooleanVar(value=False)
         qualibrate_row = tk.Frame(checks, bg=theme.surface)
         qualibrate_row.pack(anchor="w", fill="x", pady=3)
@@ -900,10 +1052,10 @@ class InstallerApp:
 
         WinPrimaryButton(
             actions,
-            "Install",
+            "Next",
             theme,
             self.fonts,
-            self._start_install,
+            self._go_to_telemetry,
         ).pack(side=tk.RIGHT)
 
     def _build_progress_footer(self, parent: tk.Misc) -> None:
@@ -1095,13 +1247,9 @@ class InstallerApp:
         dialog.wait_window()
         return result["value"]
 
-    def _build_options_obj(self) -> InstallOptions | None:
+    def _validated_repo(self) -> str | None:
+        """The repository field, checked; None after showing an error."""
         modality = self._selected_modality()
-        dest_raw = self.dest_var.get().strip()
-        if not dest_raw:
-            messagebox.showerror("Missing path", "Choose an install location.")
-            return None
-
         repo_raw = self.repo_var.get().strip()
         if not repo_raw:
             messagebox.showerror("Missing repository", "Enter a repository (owner/name), or restore the default.")
@@ -1112,6 +1260,23 @@ class InstallerApp:
             except ValueError as exc:
                 messagebox.showerror("Invalid repository", str(exc))
                 return None
+        return repo_raw
+
+    def _build_options_obj(self) -> InstallOptions | None:
+        modality = self._selected_modality()
+        dest_raw = self.dest_var.get().strip()
+        if not dest_raw:
+            messagebox.showerror("Missing path", "Choose an install location.")
+            return None
+
+        repo_raw = self._validated_repo()
+        if repo_raw is None:
+            return None
+
+        telemetry_inputs = self._telemetry_inputs()
+        if telemetry_inputs is None:
+            return None
+        remote_dsn, site_id = telemetry_inputs
 
         repo_root = self._resolved_repo_root()
         assert repo_root is not None
@@ -1133,6 +1298,8 @@ class InstallerApp:
             dest=dest_raw,
             telemetry=self.telemetry_var.get(),
             uptrace=self.telemetry_var.get() and self.uptrace_var.get(),
+            remote_dsn=remote_dsn,
+            site_id=site_id,
             skip_telemetry_setup=not (self.telemetry_var.get() and self.uptrace_var.get()),
             existing_action=existing_action,
             python=self.python_var.get(),
@@ -1141,13 +1308,6 @@ class InstallerApp:
             yes=True,
             non_interactive=True,
         )
-
-    def _sync_uptrace_checkbox(self) -> None:
-        if self.telemetry_var.get():
-            self.uptrace_check.configure(state="normal")
-        else:
-            self.uptrace_var.set(False)
-            self.uptrace_check.configure(state="disabled")
 
     def _confirm_docker_for_telemetry(self) -> bool:
         from telemetry_setup import docker_daemon_ready, docker_required_message, open_docker_install_page
@@ -1213,6 +1373,9 @@ class InstallerApp:
         dest_raw = self.dest_var.get().strip()
         if not dest_raw:
             messagebox.showerror("Missing path", "Choose an install location.")
+            return
+
+        if self._telemetry_inputs() is None:
             return
 
         self._show_page("progress")

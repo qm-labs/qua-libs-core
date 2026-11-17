@@ -30,9 +30,9 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 from config import INSTALLER_DIR, InstallerSettings, Manifest, Modality, load_manifest
-from install_options import InstallOptions, parse_args
+from install_options import InstallOptions, normalize_site_id, parse_args, validate_remote_dsn
 from process_utils import hidden_subprocess_kwargs
-from telemetry_setup import setup_telemetry, telemetry_config_path, write_telemetry_config
+from telemetry_setup import read_site_id, setup_telemetry, telemetry_config_path, write_telemetry_config
 
 # Process exit codes. Distinct codes let a caller (CI, a support request, a
 # wrapper script) tell which stage failed without parsing the message text.
@@ -301,6 +301,23 @@ def resolve_python_version(options: InstallOptions, settings: InstallerSettings)
     return choice
 
 
+def _check_telemetry_destination_options(options: InstallOptions, enable_telemetry: bool) -> None:
+    """Validate --remote-dsn / --site-id and normalize them in place."""
+    if not (options.remote_dsn or options.site_id):
+        return
+    if not enable_telemetry:
+        raise SystemExit("--remote-dsn and --site-id need telemetry turned on (--telemetry).")
+    if options.remote_dsn and options.uptrace:
+        raise SystemExit("Use only one of --uptrace (local server) or --remote-dsn.")
+    try:
+        if options.remote_dsn:
+            options.remote_dsn = validate_remote_dsn(options.remote_dsn)
+        if options.site_id:
+            options.site_id = normalize_site_id(options.site_id)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+
+
 def build_plan_from_options(manifest: Manifest, options: InstallOptions) -> InstallPlan:
     modality = choose_modality(manifest, options.modality)
     modality = resolve_modality_repo(modality, options)
@@ -314,7 +331,9 @@ def build_plan_from_options(manifest: Manifest, options: InstallOptions) -> Inst
     else:
         enable_telemetry = options.telemetry
 
-    if enable_telemetry and options.uptrace is None and not options.skip_telemetry_setup:
+    _check_telemetry_destination_options(options, enable_telemetry)
+
+    if enable_telemetry and options.uptrace is None and not options.skip_telemetry_setup and not options.remote_dsn:
         if options.non_interactive:
             options.uptrace = False
         else:
@@ -925,11 +944,16 @@ def build_summary_lines(
         if telemetry_configured:
             lines.append(f"Telemetry:    enabled ({telemetry_config_path(repo_root)})")
             toml = telemetry_config_path(repo_root)
-            has_dsn = toml.is_file() and "dsn =" in toml.read_text(encoding="utf-8")
-            if has_dsn:
+            text = toml.read_text(encoding="utf-8") if toml.is_file() else ""
+            if settings.telemetry.dsn in text:
                 lines.append(f"Uptrace UI:   {settings.telemetry.health_url}")
+            elif "dsn =" in text:
+                lines.append("Uptrace:      sending a copy to the remote server in telemetry.toml")
             else:
                 lines.append("Uptrace:      not started (local SQLite only)")
+            site_id = read_site_id(repo_root)
+            if site_id:
+                lines.append(f"Site ID:      {site_id}")
         else:
             lines.append("Telemetry:    requested but setup did not complete (see log)")
     else:

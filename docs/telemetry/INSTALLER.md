@@ -3,6 +3,11 @@
 The installer can switch telemetry on for you while it sets up your installation.
 Telemetry is optional and the box is unticked by default.
 
+In the graphical installer, telemetry has its own page. Page 1 holds the install
+choices (modality, repository, location, Python, QUA SDK, QUAlibrate), page 2 is
+**Telemetry**, and page 3 shows the install progress. Click **Next** on page 1 to
+reach it, and **Install** on page 2 to start.
+
 ## What the installer does
 
 Every install writes `<your-install>/.qua-libs/telemetry.toml` and points it at
@@ -19,6 +24,15 @@ server so you can browse your runs in a browser, waits until
 **Docker must already be installed and running** (Docker Engine on Linux, or
 Docker Desktop on Windows/macOS). If Docker is missing or the server does not
 come up, the installation still finishes with recording to the local file.
+
+If you tick **Send to a remote Uptrace server**, paste the DSN you received from
+Quantum Machines. It is written to the settings file, nothing is started on your
+computer, and runs are still recorded to the local file. The local and remote
+server options are exclusive. A DSN contains a token, so treat it like a password.
+
+**Site ID** is optional. It is the customer id from Customer Success and is
+written to `[telemetry.resource_attributes]` as `"qua.site_id"`. Reinstalling
+keeps an existing site id, and the page shows it so it does not look empty.
 
 The installer does not change calibration or example files. Tutorials in
 qua-libs-core already record once telemetry is on. Calibration nodes and other
@@ -50,6 +64,8 @@ python install.py --modality superconducting --dest /path/to/parent --telemetry
 |--------|--------|
 | `--telemetry` | Record runs to a local file |
 | `--uptrace` | Also start a local Uptrace server (needs Docker) |
+| `--remote-dsn DSN` | With `--telemetry`, also send runs to this remote Uptrace server |
+| `--site-id UUID` | With `--telemetry`, label runs with this customer site id |
 | `--skip-telemetry-setup` | With `--telemetry`, skip Uptrace and write a local-only settings file |
 | `--force-telemetry` | Set Uptrace up again even if it is already running |
 | `--skip-env` | Do not create the Python environment |

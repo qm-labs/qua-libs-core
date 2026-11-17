@@ -74,6 +74,117 @@ def test_write_telemetry_config_includes_dsn_when_requested(installer_modules, r
     assert settings.telemetry.dsn in contents
 
 
+SITE_ID = "123e4567-e89b-12d3-a456-426614174000"
+REMOTE_DSN = "https://secret_token@api.example.com?grpc=4317"
+
+
+def _load_toml(path):
+    try:
+        import tomllib
+    except ImportError:  # Python 3.10
+        import tomli as tomllib
+
+    with path.open("rb") as handle:
+        return tomllib.load(handle)
+
+
+def test_write_telemetry_config_writes_site_id_as_resource_attribute(installer_modules, repo_root):
+    ts = installer_modules["telemetry_setup"]
+    settings = installer_modules["settings"]
+
+    path = ts.write_telemetry_config(repo_root, settings, site_id=SITE_ID)
+
+    data = _load_toml(path)
+    assert data["telemetry"]["resource_attributes"] == {"qua.site_id": SITE_ID}
+    assert data["telemetry"]["local"]["path"] == ".qua-libs/traces.sqlite"
+    assert ts.read_site_id(repo_root) == SITE_ID
+
+
+def test_write_telemetry_config_keeps_existing_site_id(installer_modules, repo_root):
+    ts = installer_modules["telemetry_setup"]
+    settings = installer_modules["settings"]
+
+    ts.write_telemetry_config(repo_root, settings, site_id=SITE_ID)
+    ts.write_telemetry_config(repo_root, settings, enabled=False)
+
+    assert ts.read_site_id(repo_root) == SITE_ID
+
+
+def test_write_telemetry_config_writes_remote_dsn(installer_modules, repo_root):
+    ts = installer_modules["telemetry_setup"]
+    settings = installer_modules["settings"]
+
+    path = ts.write_telemetry_config(repo_root, settings, dsn=REMOTE_DSN)
+
+    assert _load_toml(path)["telemetry"]["dsn"] == REMOTE_DSN
+    assert ts.read_remote_dsn(repo_root, settings) == REMOTE_DSN
+
+
+def test_read_remote_dsn_ignores_local_uptrace_dsn(installer_modules, repo_root):
+    ts = installer_modules["telemetry_setup"]
+    settings = installer_modules["settings"]
+
+    ts.write_telemetry_config(repo_root, settings, include_dsn=True)
+
+    assert ts.read_remote_dsn(repo_root, settings) is None
+
+
+def test_setup_telemetry_remote_dsn_skips_docker(installer_modules, repo_root):
+    ts = installer_modules["telemetry_setup"]
+    settings = installer_modules["settings"]
+    InstallOptions = installer_modules["InstallOptions"]
+
+    options = InstallOptions(
+        modality="superconducting",
+        dest=str(repo_root),
+        remote_dsn=REMOTE_DSN,
+        site_id=SITE_ID,
+        yes=True,
+        non_interactive=True,
+    )
+
+    with patch.object(ts, "run_uptrace_setup") as run_setup, patch.object(ts, "ensure_docker") as ensure_docker:
+        assert ts.setup_telemetry(repo_root, settings, options) is True
+
+    run_setup.assert_not_called()
+    ensure_docker.assert_not_called()
+    data = _load_toml(ts.telemetry_config_path(repo_root))["telemetry"]
+    assert data["enabled"] is True
+    assert data["dsn"] == REMOTE_DSN
+    assert data["resource_attributes"]["qua.site_id"] == SITE_ID
+
+
+def test_setup_telemetry_local_only_keeps_site_id(installer_modules, repo_root):
+    ts = installer_modules["telemetry_setup"]
+    settings = installer_modules["settings"]
+    InstallOptions = installer_modules["InstallOptions"]
+
+    ts.write_telemetry_config(repo_root, settings, site_id=SITE_ID)
+    options = InstallOptions(modality="superconducting", dest=str(repo_root), skip_telemetry_setup=True, yes=True)
+
+    assert ts.setup_telemetry(repo_root, settings, options) is True
+
+    assert ts.read_site_id(repo_root) == SITE_ID
+
+
+def test_normalize_site_id(installer_modules):
+    from install_options import normalize_site_id
+
+    assert normalize_site_id(f"  {SITE_ID.upper()} ") == SITE_ID
+    for bad in ("", "not-a-uuid", "acme-corp"):
+        with pytest.raises(ValueError):
+            normalize_site_id(bad)
+
+
+def test_validate_remote_dsn(installer_modules):
+    from install_options import validate_remote_dsn
+
+    assert validate_remote_dsn(f" {REMOTE_DSN} ") == REMOTE_DSN
+    for bad in ("", "api.example.com", "https://no-token.example.com", 'https://a"b@host', "https://a b@host"):
+        with pytest.raises(ValueError):
+            validate_remote_dsn(bad)
+
+
 def test_setup_telemetry_skip_writes_config_only(installer_modules, repo_root):
     ts = installer_modules["telemetry_setup"]
     settings = installer_modules["settings"]

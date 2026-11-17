@@ -3,9 +3,28 @@
 from __future__ import annotations
 
 import argparse
+import uuid
 from dataclasses import dataclass
 
 from config import Manifest
+
+
+def normalize_site_id(value: str) -> str:
+    """Return the site id as a lowercase UUID string, or raise ValueError."""
+    try:
+        return str(uuid.UUID(value.strip()))
+    except (ValueError, AttributeError) as exc:
+        raise ValueError(f"Site ID must be a UUID like 123e4567-e89b-12d3-a456-426614174000, got {value!r}.") from exc
+
+
+def validate_remote_dsn(value: str) -> str:
+    """Return the stripped DSN, or raise ValueError if it cannot be a valid Uptrace DSN."""
+    dsn = value.strip()
+    if not dsn.startswith(("http://", "https://")) or "@" not in dsn:
+        raise ValueError("Remote Uptrace DSN must look like https://<token>@host?grpc=4317")
+    if any(ch.isspace() or ch in '"\\' for ch in dsn):
+        raise ValueError("Remote Uptrace DSN must not contain spaces, quotes, or backslashes.")
+    return dsn
 
 
 @dataclass
@@ -15,6 +34,8 @@ class InstallOptions:
     dest: str | None = None
     telemetry: bool | None = None
     uptrace: bool | None = None
+    remote_dsn: str | None = None
+    site_id: str | None = None
     existing_action: str | None = None
     python: str | None = None
     qm_qua_version: str = "latest"
@@ -61,6 +82,14 @@ def parse_args(argv: list[str] | None, manifest: Manifest) -> InstallOptions:
         "--uptrace",
         action=argparse.BooleanOptionalAction,
         help="Also start local Uptrace via Docker and add a DSN to telemetry.toml.",
+    )
+    parser.add_argument(
+        "--remote-dsn",
+        help="Also send telemetry to a remote Uptrace server (DSN from Quantum Machines). Needs --telemetry.",
+    )
+    parser.add_argument(
+        "--site-id",
+        help="Customer site UUID from Customer Success; labels every run from this site. Needs --telemetry.",
     )
     parser.add_argument(
         "--existing-action",
@@ -121,6 +150,8 @@ def parse_args(argv: list[str] | None, manifest: Manifest) -> InstallOptions:
         dest=args.dest,
         telemetry=args.telemetry,
         uptrace=args.uptrace,
+        remote_dsn=args.remote_dsn,
+        site_id=args.site_id,
         existing_action=args.existing_action,
         python=args.python,
         qm_qua_version=args.qm_qua_version,
