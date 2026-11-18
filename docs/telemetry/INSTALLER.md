@@ -30,9 +30,11 @@ Quantum Machines. It is written to the settings file, nothing is started on your
 computer, and runs are still recorded to the local file. The local and remote
 server options are exclusive. A DSN contains a token, so treat it like a password.
 
-**Site ID** is optional. It is the customer id from Customer Success and is
-written to `[telemetry.resource_attributes]` as `"qua.site_id"`. Reinstalling
-keeps an existing site id, and the page shows it so it does not look empty.
+**Site ID** is the customer id from Customer Success, written to
+`[telemetry.resource_attributes]` as `site_id`. It is required when sending to a
+remote Uptrace server, and can be left blank for a local-only install.
+Reinstalling keeps an existing site id, and the page shows it so it does not
+look empty.
 
 The installer does not change calibration or example files. Tutorials in
 qua-libs-core already record once telemetry is on. Calibration nodes and other
@@ -65,7 +67,7 @@ python install.py --modality superconducting --dest /path/to/parent --telemetry
 | `--telemetry` | Record runs to a local file |
 | `--uptrace` | Also start a local Uptrace server (needs Docker) |
 | `--remote-dsn DSN` | With `--telemetry`, also send runs to this remote Uptrace server |
-| `--site-id UUID` | With `--telemetry`, label runs with this customer site id |
+| `--site-id UUID` | Label runs with this customer site id. Required with `--remote-dsn` |
 | `--skip-telemetry-setup` | With `--telemetry`, skip Uptrace and write a local-only settings file |
 | `--force-telemetry` | Set Uptrace up again even if it is already running |
 | `--skip-env` | Do not create the Python environment |

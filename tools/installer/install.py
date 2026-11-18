@@ -309,6 +309,8 @@ def _check_telemetry_destination_options(options: InstallOptions, enable_telemet
         raise SystemExit("--remote-dsn and --site-id need telemetry turned on (--telemetry).")
     if options.remote_dsn and options.uptrace:
         raise SystemExit("Use only one of --uptrace (local server) or --remote-dsn.")
+    if options.remote_dsn and not options.site_id:
+        raise SystemExit("--remote-dsn requires --site-id.")
     try:
         if options.remote_dsn:
             options.remote_dsn = validate_remote_dsn(options.remote_dsn)

@@ -575,7 +575,7 @@ class InstallerApp:
 
         self._telemetry_hint(
             body,
-            "If using remote Uptrace, please provide the UUID provided by Quantum Machines. Leave blank if you do not have one.",
+            "Required when sending to a remote Uptrace server. Please provide the UUID provided by Quantum Machines. Leave blank for a local-only install.",
         ).pack(anchor="w", pady=(0, 2))
         site_row = tk.Frame(body, bg=theme.surface)
         site_row.pack(fill="x")
@@ -652,6 +652,8 @@ class InstallerApp:
         try:
             if self.telemetry_var.get() and self.remote_var.get():
                 remote_dsn = validate_remote_dsn(self.remote_dsn_var.get())
+                if not self.site_id_var.get().strip():
+                    raise ValueError("A site ID is required to send telemetry to a remote Uptrace server.")
             if self.telemetry_var.get() and self.site_id_var.get().strip():
                 site_id = normalize_site_id(self.site_id_var.get())
         except ValueError as exc:

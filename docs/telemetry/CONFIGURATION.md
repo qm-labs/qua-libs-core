@@ -28,9 +28,14 @@ record a script that never calls telemetry.
 [telemetry]
 enabled = true
 service_name = "qua-libs"
-deployment_environment = "lab-3"
-# Only if you run an Uptrace server (needs Docker); see SELF_HOSTING.md
+service_version = "1.0.0"
+deployment_environment = "local"
+# Local Uptrace (Docker). A remote server uses the DSN from Quantum Machines instead.
 dsn = "http://project1_secret@localhost:14318?grpc=14317"
+
+[telemetry.resource_attributes]
+# Required when dsn is not on this computer.
+site_id = "123e4567-e89b-12d3-a456-426614174000"
 
 [telemetry.local]
 path = ".qua-libs/traces.sqlite"
@@ -40,16 +45,15 @@ max_bytes = 52428800
 `[telemetry]` covers the recording as a whole: whether it happens at all, how
 runs are labelled, and whether a copy also goes to an Uptrace server.
 
-To mark every run from one customer site, add the site id Customer Success gave
-you. Every computer and user that shares this file reports as the same site:
+`site_id` is the customer id from Customer Success. Every computer and user that
+shares this file reports as the same site. Leave it out for a local-only install,
+including a Uptrace server on this computer. If `dsn` points anywhere else and
+`site_id` is missing, runs stay in the local file and are not sent. The installer
+writes this from its **Site ID** field and keeps it when you reinstall.
 
-```toml
-[telemetry.resource_attributes]
-"qua.site_id" = "123e4567-e89b-12d3-a456-426614174000"
-```
-
-The key needs its quotes, because the dot is part of the name. The installer
-writes this for you from its **Site ID** field and keeps it when you reinstall.
+Every run also carries `qua.packages`, the installed package versions as
+`name==version` pairs, read once when telemetry starts. You do not set this in
+the file.
 
 `[telemetry.local]` covers only the file kept on
 your machine: where it lives and how large it may get. Your runs always go to
@@ -64,8 +68,8 @@ group out entirely and the defaults below are used.
 | `dsn` | none | Address of an Uptrace server to also send runs to. Leave it out to keep everything on this machine |
 | `service_name` | `qua-libs` | Name your runs appear under |
 | `service_version` | `1.0.0` | Free-form version label for your setup |
-| `deployment_environment` | `production` | Free-form label, e.g. a lab or fridge name. The installer writes `local` |
-| `resource_attributes` | none | Extra labels attached to every run, e.g. `{ lab = "b12" }` |
+| `deployment_environment` | `production` | Label for this setup. The installer writes `local` |
+| `resource_attributes` | none | Extra labels on every run. `site_id` is the customer id; see the full file above |
 
 ### Under `[telemetry.local]`
 
@@ -96,7 +100,8 @@ $env:UPTRACE_ENABLED = "true"
 $env:UPTRACE_DSN = "http://project1_secret@localhost:14318?grpc=14317"
 ```
 
-Turning it on this way, with no `dsn`, still records to the local file.
+Turning it on this way, with no `dsn`, still records to the local file. A remote
+`UPTRACE_DSN` is still not sent unless the file contains `site_id`.
 
 If your settings file is somewhere unusual, point at it with
 `QUA_LIBS_TELEMETRY_CONFIG=/path/to/telemetry.toml`.
@@ -129,7 +134,7 @@ do not pass fall back to the built-in defaults rather than to your settings file
 | Stop recording | `enabled = false` |
 | Keep more history | Raise `max_bytes` |
 | Start fresh | Delete `traces.sqlite` while nothing is running |
-| Also browse runs in a browser | Set `dsn` and run Uptrace (needs Docker; [SELF_HOSTING.md](SELF_HOSTING.md)) |
+| Also browse runs in a browser | Set `dsn`. Local Uptrace needs Docker ([SELF_HOSTING.md](SELF_HOSTING.md)); a remote DSN also needs `site_id` |
 | Stop sending to Uptrace | Remove `dsn`. Local recording continues |
 
 Settings are read once, when your script starts. Edit them before you run; in

@@ -4,8 +4,10 @@ Telemetry initialization: build the OpenTelemetry pipeline from a resolved confi
 
 import logging
 from dataclasses import dataclass
+from importlib.metadata import distributions
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 from opentelemetry import trace
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -21,6 +23,8 @@ from .file_config import (
 from .sqlite_exporter import DEFAULT_LOCAL_PATH, SqliteSpanExporter
 
 logger = logging.getLogger(__name__)
+
+PACKAGES_ATTRIBUTE = "qua.packages"
 
 __all__ = ["init_telemetry", "force_flush", "get_tracer", "resolve_local_db_path"]
 
@@ -74,19 +78,29 @@ def init_telemetry(config: Optional[TelemetryConfig] = None) -> None:
         _runtime = _Runtime()
         return
 
+    dsn = config.dsn
+    if dsn and _remote_dsn_needs_site_id(dsn, config):
+        logger.warning(
+            "Telemetry DSN points at a remote server but site_id is not set. "
+            "Spans will stay in the local store and will not be sent. "
+            "Add site_id under [telemetry.resource_attributes] in telemetry.toml."
+        )
+        dsn = None
+
     # Uptrace, when a DSN is set, creates and installs the global TracerProvider.
     uptrace_ok = False
-    if config.dsn:
+    if dsn:
         try:
             uptrace.configure_opentelemetry(
-                dsn=config.dsn,
-                service_name=config.service_name,
-                service_version=config.service_version,
-                deployment_environment=config.deployment_environment,
-                resource_attributes=config.resource_attributes,
+                dsn=dsn,
+                resource=_telemetry_resource(config),
             )
             uptrace_ok = True
-            logger.info("Telemetry Uptrace export initialized: %s v%s", config.service_name, config.service_version)
+            logger.info(
+                "Telemetry Uptrace export initialized: %s v%s",
+                config.service_name,
+                config.service_version,
+            )
         except Exception as e:
             logger.warning("Failed to initialize Uptrace export: %s", e)
 
@@ -143,21 +157,52 @@ def get_tracer() -> trace.Tracer:
     return _runtime.tracer
 
 
+def _remote_dsn_needs_site_id(dsn: str, config: TelemetryConfig) -> bool:
+    host = (urlparse(dsn).hostname or "").lower().strip("[]")
+    if host in {"localhost", "127.0.0.1", "::1"}:
+        return False
+    site_id = config.resource_attributes.get("site_id", "")
+    return not str(site_id).strip()
+
+
+def installed_package_versions() -> str:
+    versions = []
+    for dist in distributions():
+        try:
+            name = dist.metadata["Name"]
+            version = dist.version
+        except Exception:  # noqa: BLE001 - one bad distribution must not drop the rest
+            continue
+        if name and version:
+            versions.append(f"{name}=={version}")
+    versions.sort(key=str.lower)
+    return ",".join(versions)
+
+
+def _telemetry_resource(config: TelemetryConfig) -> Resource:
+    attributes = {
+        "service.name": config.service_name,
+        "service.version": config.service_version,
+        "deployment.environment": config.deployment_environment,
+        **config.resource_attributes,
+    }
+    try:
+        packages = installed_package_versions()
+    except Exception as exc:  # noqa: BLE001 - versions are optional
+        logger.warning("Could not read installed package versions: %s", exc)
+        packages = ""
+    if packages:
+        attributes[PACKAGES_ATTRIBUTE] = packages
+    return Resource.create(attributes)
+
+
 def _ensure_tracer_provider(config: TelemetryConfig) -> TracerProvider:
     """Return the process SDK TracerProvider, creating and installing it if needed."""
     provider = trace.get_tracer_provider()
     if isinstance(provider, TracerProvider):
         return provider
 
-    resource = Resource.create(
-        {
-            "service.name": config.service_name,
-            "service.version": config.service_version,
-            "deployment.environment": config.deployment_environment,
-            **config.resource_attributes,
-        }
-    )
-    provider = TracerProvider(resource=resource)
+    provider = TracerProvider(resource=_telemetry_resource(config))
     trace.set_tracer_provider(provider)
     return provider
 

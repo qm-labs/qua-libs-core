@@ -95,7 +95,7 @@ def test_write_telemetry_config_writes_site_id_as_resource_attribute(installer_m
     path = ts.write_telemetry_config(repo_root, settings, site_id=SITE_ID)
 
     data = _load_toml(path)
-    assert data["telemetry"]["resource_attributes"] == {"qua.site_id": SITE_ID}
+    assert data["telemetry"]["resource_attributes"] == {"site_id": SITE_ID}
     assert data["telemetry"]["local"]["path"] == ".qua-libs/traces.sqlite"
     assert ts.read_site_id(repo_root) == SITE_ID
 
@@ -151,7 +151,7 @@ def test_setup_telemetry_remote_dsn_skips_docker(installer_modules, repo_root):
     data = _load_toml(ts.telemetry_config_path(repo_root))["telemetry"]
     assert data["enabled"] is True
     assert data["dsn"] == REMOTE_DSN
-    assert data["resource_attributes"]["qua.site_id"] == SITE_ID
+    assert data["resource_attributes"]["site_id"] == SITE_ID
 
 
 def test_setup_telemetry_local_only_keeps_site_id(installer_modules, repo_root):
@@ -174,6 +174,28 @@ def test_normalize_site_id(installer_modules):
     for bad in ("", "not-a-uuid", "acme-corp"):
         with pytest.raises(ValueError):
             normalize_site_id(bad)
+
+
+def test_read_site_id_accepts_the_previous_key(installer_modules, repo_root):
+    ts = installer_modules["telemetry_setup"]
+    path = repo_root / ".qua-libs" / "telemetry.toml"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        '[telemetry.resource_attributes]\n"qua.site_id" = "123e4567-e89b-12d3-a456-426614174000"\n', encoding="utf-8"
+    )
+    assert ts.read_site_id(repo_root) == SITE_ID
+
+
+def test_remote_dsn_requires_site_id(installer_modules):
+    from install import _check_telemetry_destination_options
+
+    InstallOptions = installer_modules["InstallOptions"]
+    remote = InstallOptions(telemetry=True, remote_dsn=REMOTE_DSN)
+    with pytest.raises(SystemExit, match="--site-id"):
+        _check_telemetry_destination_options(remote, True)
+
+    local = InstallOptions(telemetry=True)
+    _check_telemetry_destination_options(local, True)
 
 
 def test_validate_remote_dsn(installer_modules):
