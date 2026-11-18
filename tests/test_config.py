@@ -111,7 +111,59 @@ def test_init_telemetry_reads_project_toml(tmp_path, monkeypatch, configure_spy)
     telemetry.init_telemetry()
 
     assert len(configure_spy) == 1
-    assert configure_spy[0][1]["dsn"] == "http://project1_secret@localhost:14318?grpc=14317"
+    kwargs = configure_spy[0][1]
+    assert kwargs["dsn"] == "http://project1_secret@localhost:14318?grpc=14317"
+    assert "host.name" not in kwargs["resource"].attributes
+    assert kwargs["resource"].attributes["service.name"] == "qua-libs"
+
+
+def test_uptrace_resource_carries_site_id_and_not_hostname(configure_spy):
+    telemetry.init_telemetry(
+        telemetry.TelemetryConfig(
+            enabled=True,
+            dsn="https://token@api.uptrace.dev?grpc=4317",
+            resource_attributes={"site_id": "0"},
+        )
+    )
+    attributes = configure_spy[0][1]["resource"].attributes
+    assert attributes["site_id"] == "0"
+    assert "host.name" not in attributes
+
+
+def test_remote_dsn_without_site_id_is_not_sent(configure_spy, tmp_path, caplog):
+    db = tmp_path / "traces.sqlite"
+    with caplog.at_level("WARNING"):
+        telemetry.init_telemetry(
+            telemetry.TelemetryConfig(
+                enabled=True,
+                dsn="https://token@api.uptrace.dev?grpc=4317",
+                local_path=str(db),
+            )
+        )
+    assert configure_spy == []
+    assert "site_id is not set" in caplog.text
+    tracer = telemetry.get_tracer()
+    with tracer.start_as_current_span("kept_local"):
+        pass
+    telemetry.force_flush()
+    names = [row[0] for row in sqlite3.connect(db).execute("SELECT name FROM spans")]
+    assert names == ["kept_local"]
+
+
+def test_resource_records_installed_package_versions(configure_spy, monkeypatch):
+    monkeypatch.setattr(
+        telemetry_config,
+        "installed_package_versions",
+        lambda: "numpy==2.0.0,qm-qua==1.3.1",
+    )
+    telemetry.init_telemetry(
+        telemetry.TelemetryConfig(
+            enabled=True,
+            dsn="https://token@api.uptrace.dev?grpc=4317",
+            resource_attributes={"site_id": "0"},
+        )
+    )
+    assert configure_spy[0][1]["resource"].attributes["qua.packages"] == "numpy==2.0.0,qm-qua==1.3.1"
 
 
 def test_resolve_local_db_path_uses_repo_when_toml_is_under_qua_libs(tmp_path, monkeypatch):

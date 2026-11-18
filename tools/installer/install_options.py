@@ -89,7 +89,7 @@ def parse_args(argv: list[str] | None, manifest: Manifest) -> InstallOptions:
     )
     parser.add_argument(
         "--site-id",
-        help="Customer site UUID from Customer Success; labels every run from this site. Needs --telemetry.",
+        help="Customer site UUID from Customer Success. Required with --remote-dsn. Optional for local telemetry.",
     )
     parser.add_argument(
         "--existing-action",

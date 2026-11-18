@@ -200,8 +200,8 @@ def _run_uptrace_setup_windows(compose_dir: Path, compose_file: Path) -> None:
     raise RuntimeError("Uptrace did not respond within ~180s.")
 
 
-SITE_ID_KEY = "qua.site_id"
-_SITE_ID_PATTERN = re.compile(r'^\s*"qua\.site_id"\s*=\s*"([^"]*)"', re.MULTILINE)
+SITE_ID_KEY = "site_id"
+_SITE_ID_PATTERN = re.compile(r'^\s*"?(?:qua\.)?site_id"?\s*=\s*"([^"]*)"', re.MULTILINE)
 _DSN_PATTERN = re.compile(r'^\s*dsn\s*=\s*"([^"]*)"', re.MULTILINE)
 
 
@@ -239,7 +239,7 @@ def write_telemetry_config(
     """Write ``.qua-libs/telemetry.toml``.
 
     ``include_dsn`` writes the local Uptrace DSN; ``dsn`` writes that address instead
-    (a remote server). ``site_id`` labels every run with ``qua.site_id``. When it is
+    (a remote server). ``site_id`` labels every run with ``site_id``. When it is
     None, a site id already in the file is kept, so reinstalling never drops it.
     """
     telemetry = settings.telemetry
@@ -260,7 +260,7 @@ def write_telemetry_config(
     if dsn_to_write:
         lines.append(f'dsn = "{dsn_to_write}"')
     if site_id:
-        lines.extend(["", "[telemetry.resource_attributes]", f'"{SITE_ID_KEY}" = "{site_id}"'])
+        lines.extend(["", "[telemetry.resource_attributes]", f'{SITE_ID_KEY} = "{site_id}"'])
     lines.extend(
         [
             "",
