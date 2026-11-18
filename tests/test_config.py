@@ -163,7 +163,7 @@ def test_resource_records_installed_package_versions(configure_spy, monkeypatch)
             resource_attributes={"site_id": "0"},
         )
     )
-    assert configure_spy[0][1]["resource"].attributes["qua.packages"] == "numpy==2.0.0,qm-qua==1.3.1"
+    assert configure_spy[0][1]["resource"].attributes["packages"] == "numpy==2.0.0,qm-qua==1.3.1"
 
 
 def test_resolve_local_db_path_uses_repo_when_toml_is_under_qua_libs(tmp_path, monkeypatch):

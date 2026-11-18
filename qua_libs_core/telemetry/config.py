@@ -24,7 +24,7 @@ from .sqlite_exporter import DEFAULT_LOCAL_PATH, SqliteSpanExporter
 
 logger = logging.getLogger(__name__)
 
-PACKAGES_ATTRIBUTE = "qua.packages"
+PACKAGES_ATTRIBUTE = "packages"
 
 __all__ = ["init_telemetry", "force_flush", "get_tracer", "resolve_local_db_path"]
 

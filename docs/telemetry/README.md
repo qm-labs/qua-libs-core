@@ -35,7 +35,7 @@ More settings, including where the file goes: [CONFIGURATION.md](CONFIGURATION.m
 For each run:
 
 - The script or calibration node name, and when it ran
-- The installed package versions (`qua.packages`), read once when the run starts
+- The installed package versions (`packages`), read once when the run starts
 - Each recorded step (opening the quantum machine, executing, fetching results,
   fitting, …) with its duration and whether it succeeded
 - The error message and location if something failed. Stopping a run with Ctrl-C
