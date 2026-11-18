@@ -51,7 +51,7 @@ including a Uptrace server on this computer. If `dsn` points anywhere else and
 `site_id` is missing, runs stay in the local file and are not sent. The installer
 writes this from its **Site ID** field and keeps it when you reinstall.
 
-Every run also carries `qua.packages`, the installed package versions as
+Every run also carries `packages`, the installed package versions as
 `name==version` pairs, read once when telemetry starts. You do not set this in
 the file.
 
