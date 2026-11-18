@@ -1,11 +1,12 @@
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-18
+
 ### Added
 
 - Installer: a separate **Telemetry** page (setup, then telemetry, then progress) with a short explanation, **Enable telemetry**, **Start local Uptrace**, **Send to a remote Uptrace server** (paste a DSN), and an optional **Site ID**. CLI: `--remote-dsn` and `--site-id`.
 - `telemetry.toml` can carry `site_id` under `[telemetry.resource_attributes]` so every computer at one customer site reports as the same site. It is required when sending to a remote Uptrace server and optional for a local-only install. A remote DSN with no `site_id` is not sent; those runs stay in the local file. The installer keeps an existing site id when it rewrites the file.
 - Telemetry records `packages`, the installed package versions, once on each run.
-
 
 ## [0.5.1] - 2026-11-04
 

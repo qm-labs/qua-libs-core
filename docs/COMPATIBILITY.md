@@ -5,6 +5,7 @@ planning an install or validating your environment.
 
 | qua-libs-core | qm-qua | Python | Notes |
 |---------------|--------|--------|-------|
+| 0.5.2 | 1.3.1 (lockfile) | 3.10–3.14 | Installer telemetry page can record locally, start local Uptrace, or send to a remote DSN with a required `site_id`. Runs include installed package versions and omit the computer hostname. Installer zips are unsigned. |
 | 0.5.1 | 1.3.1 (lockfile) | 3.10–3.14 | Same installer behavior as 0.5.0. Installer zips are unsigned so the release workflow can build. |
 | 0.5.0 | 1.3.1 (lockfile) | 3.10–3.14 | Installer can install latest, the lockfile pin, or a chosen qm-qua version. `--repo` accepts a customer repo, including one with `qua-libs-<modality>/` nested inside. |
 | 0.4.4 | 1.3.1 | 3.10–3.14 | Installer also ships an Apple Silicon macOS build. |
